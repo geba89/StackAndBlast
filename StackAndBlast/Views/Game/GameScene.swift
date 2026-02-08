@@ -39,6 +39,28 @@ final class GameScene: SKScene {
     /// Scale factor for tray pieces relative to grid cells.
     private let trayPieceScale: CGFloat = 0.6
 
+    // MARK: - ViewModel Reference
+
+    /// Bridge to the ViewModel for executing game actions.
+    weak var viewModel: GameViewModel?
+
+    // MARK: - Drag State
+
+    /// The piece model currently being dragged.
+    private var draggedPiece: Piece?
+
+    /// The visual node following the finger during drag.
+    private var draggedPieceNode: SKNode?
+
+    /// Ghost preview nodes showing where the piece will land on the grid.
+    private var ghostNodes: [SKShapeNode] = []
+
+    /// The current grid position the dragged piece snaps to.
+    private var currentHoverPosition: GridPosition?
+
+    /// Whether animations are playing (blocks touch input).
+    var isAnimating: Bool = false
+
     // MARK: - Lifecycle
 
     override func didMove(to view: SKView) {
@@ -177,6 +199,188 @@ final class GameScene: SKScene {
         node.addChild(highlight)
 
         return node
+    }
+
+    // MARK: - Blast Animation (stub — full implementation in Commit 6)
+
+    /// Animate a blast sequence. For now, just applies the final grid state immediately.
+    func animateBlastSequence(
+        events: [BlastEvent],
+        preBlastGrid: [[Block?]],
+        finalGrid: [[Block?]],
+        completion: @escaping () -> Void
+    ) {
+        // Show the pre-blast state briefly, then snap to final
+        updateGrid(preBlastGrid)
+
+        run(SKAction.wait(forDuration: 0.3)) { [weak self] in
+            self?.updateGrid(finalGrid)
+            completion()
+        }
+    }
+
+    // MARK: - Touch Handling
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard !isAnimating, let touch = touches.first else { return }
+        let location = touch.location(in: self)
+
+        // Hit-test against tray pieces
+        for (pieceID, trayNode) in trayPieceNodes {
+            // Use a generous hit area around each tray piece
+            let trayLocation = touch.location(in: trayNode)
+            let hitArea = CGRect(x: -cellSize * 2, y: -cellSize * 2,
+                                 width: cellSize * 4, height: cellSize * 4)
+
+            if hitArea.contains(trayLocation),
+               let piece = viewModel?.engine.tray.first(where: { $0.id == pieceID }) {
+                // Start dragging this piece
+                draggedPiece = piece
+
+                // Create a full-size copy of the piece for dragging
+                let dragNode = createDragNode(for: piece)
+                // Offset above finger so the piece is visible
+                dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
+                dragNode.zPosition = 10
+                addChild(dragNode)
+                draggedPieceNode = dragNode
+
+                // Fade out the tray version
+                trayNode.alpha = 0.3
+
+                viewModel?.beginDrag(piece: piece)
+                break
+            }
+        }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first,
+              let dragNode = draggedPieceNode,
+              let piece = draggedPiece else { return }
+
+        let location = touch.location(in: self)
+
+        // Move the drag node above the finger
+        dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
+
+        // Determine which grid cell the piece origin snaps to
+        // Use the drag node position (offset above finger) as the reference point
+        let snapPoint = dragNode.position
+        let newHoverPosition = gridPosition(for: snapPoint)
+
+        if newHoverPosition != currentHoverPosition {
+            currentHoverPosition = newHoverPosition
+            updateGhostPreview(piece: piece, at: newHoverPosition)
+            viewModel?.updateHover(position: newHoverPosition ?? GridPosition(row: -1, col: -1))
+        }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let piece = draggedPiece else { return }
+
+        if let hoverPos = currentHoverPosition, viewModel?.engine.canPlace(piece, at: hoverPos) == true {
+            // Valid placement — execute it
+            viewModel?.endDrag()
+        } else {
+            // Invalid — bounce piece back to tray
+            viewModel?.cancelDrag()
+            // Restore tray piece opacity
+            if let trayNode = trayPieceNodes[piece.id] {
+                trayNode.alpha = 1.0
+            }
+        }
+
+        cleanupDragState()
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let piece = draggedPiece, let trayNode = trayPieceNodes[piece.id] {
+            trayNode.alpha = 1.0
+        }
+        viewModel?.cancelDrag()
+        cleanupDragState()
+    }
+
+    // MARK: - Drag Helpers
+
+    /// Create a full-size visual copy of a piece for dragging.
+    private func createDragNode(for piece: Piece) -> SKNode {
+        let container = SKNode()
+
+        // Center the piece around its bounding box
+        let minRow = piece.cells.map(\.row).min() ?? 0
+        let maxRow = piece.cells.map(\.row).max() ?? 0
+        let minCol = piece.cells.map(\.col).min() ?? 0
+        let maxCol = piece.cells.map(\.col).max() ?? 0
+        let pieceWidth = CGFloat(maxCol - minCol + 1)
+        let pieceHeight = CGFloat(maxRow - minRow + 1)
+        let offsetX = -pieceWidth * cellSize / 2
+        let offsetY = pieceHeight * cellSize / 2
+
+        for cell in piece.cells {
+            let x = offsetX + CGFloat(cell.col - minCol) * cellSize + cellSize / 2
+            let y = offsetY - CGFloat(cell.row - minRow) * cellSize - cellSize / 2
+            let blockNode = createBlockNode(color: piece.color)
+            blockNode.position = CGPoint(x: x, y: y)
+            container.addChild(blockNode)
+        }
+
+        // Slight scale-up while dragging for visual feedback
+        container.setScale(1.05)
+        container.alpha = 0.9
+
+        return container
+    }
+
+    /// Show ghost preview on the grid at the hover position.
+    private func updateGhostPreview(piece: Piece, at position: GridPosition?) {
+        // Remove old ghosts
+        for ghost in ghostNodes {
+            ghost.removeFromParent()
+        }
+        ghostNodes.removeAll()
+
+        guard let origin = position else { return }
+
+        let positions = piece.absolutePositions(at: origin)
+        let isValid = positions.allSatisfy {
+            $0.isValid && viewModel?.engine.grid[$0.row][$0.col] == nil
+        }
+
+        let ghostColor: UIColor = isValid
+            ? UIColor.green.withAlphaComponent(0.25)
+            : UIColor.red.withAlphaComponent(0.25)
+
+        let borderColor: UIColor = isValid
+            ? UIColor.green.withAlphaComponent(0.5)
+            : UIColor.red.withAlphaComponent(0.5)
+
+        for pos in positions where pos.isValid {
+            let inset: CGFloat = 1.0
+            let ghostSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
+            let ghost = SKShapeNode(rectOf: ghostSize, cornerRadius: blockCornerRadius)
+            ghost.fillColor = ghostColor
+            ghost.strokeColor = borderColor
+            ghost.lineWidth = 1.0
+            ghost.position = scenePosition(for: pos)
+            ghost.zPosition = 2
+            addChild(ghost)
+            ghostNodes.append(ghost)
+        }
+    }
+
+    /// Clean up all drag-related visual state.
+    private func cleanupDragState() {
+        draggedPieceNode?.removeFromParent()
+        draggedPieceNode = nil
+        draggedPiece = nil
+        currentHoverPosition = nil
+
+        for ghost in ghostNodes {
+            ghost.removeFromParent()
+        }
+        ghostNodes.removeAll()
     }
 
     // MARK: - Grid Setup

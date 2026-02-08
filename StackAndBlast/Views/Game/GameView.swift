@@ -5,13 +5,14 @@ import SpriteKit
 struct GameView: View {
     @Bindable var viewModel: GameViewModel
 
-    /// The SpriteKit scene instance.
-    private var scene: GameScene {
+    /// Persistent SpriteKit scene instance — must NOT be a computed property
+    /// or it gets recreated on every SwiftUI re-render, losing all state.
+    @State private var scene: GameScene = {
         let scene = GameScene()
-        scene.size = CGSize(width: 390, height: 844) // iPhone 14 reference size
+        scene.size = CGSize(width: 390, height: 844)
         scene.scaleMode = .aspectFill
         return scene
-    }
+    }()
 
     var body: some View {
         ZStack {
@@ -32,12 +33,14 @@ struct GameView: View {
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
+                            .contentTransition(.numericText())
+                            .animation(.spring(duration: 0.3), value: viewModel.engine.score)
                     }
 
                     Spacer()
 
                     Button {
-                        // TODO: Pause action
+                        // TODO: Pause action (Commit 5)
                     } label: {
                         Image(systemName: "pause.fill")
                             .font(.title3)
@@ -50,6 +53,11 @@ struct GameView: View {
 
                 Spacer()
             }
+        }
+        .onAppear {
+            // Wire the scene ↔ viewModel bridge
+            scene.viewModel = viewModel
+            viewModel.scene = scene
         }
     }
 }

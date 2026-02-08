@@ -9,6 +9,9 @@ final class GameViewModel {
 
     let engine = GameEngine()
 
+    /// Reference to the SpriteKit scene for pushing visual updates.
+    weak var scene: GameScene?
+
     /// The piece currently being dragged, if any.
     var draggedPiece: Piece?
 
@@ -21,10 +24,18 @@ final class GameViewModel {
         return engine.canPlace(piece, at: origin)
     }
 
+    /// Whether blast animations are currently playing.
+    var isAnimating: Bool = false
+
+    /// Current cascade combo level (for HUD display). 0 = no combo active.
+    var currentCombo: Int = 0
+
     // MARK: - Actions
 
     func startGame() {
         engine.startNewGame()
+        scene?.updateGrid(engine.grid)
+        scene?.updateTray(engine.tray)
     }
 
     func beginDrag(piece: Piece) {
@@ -42,7 +53,33 @@ final class GameViewModel {
         }
 
         guard let piece = draggedPiece, let origin = hoverPosition else { return }
-        engine.placePiece(piece, at: origin)
+
+        let result = engine.placePiece(piece, at: origin)
+
+        guard result.success else { return }
+
+        if !result.blastEvents.isEmpty, let preBlastGrid = result.preBlastGrid {
+            // Blast occurred — queue animations
+            isAnimating = true
+            scene?.isAnimating = true
+            currentCombo = result.blastEvents.map(\.cascadeLevel).max().map { $0 + 1 } ?? 0
+
+            scene?.animateBlastSequence(
+                events: result.blastEvents,
+                preBlastGrid: preBlastGrid,
+                finalGrid: engine.grid
+            ) { [weak self] in
+                guard let self else { return }
+                self.isAnimating = false
+                self.scene?.isAnimating = false
+                self.currentCombo = 0
+                self.scene?.updateTray(self.engine.tray)
+            }
+        } else {
+            // No blast — just update the grid and tray immediately
+            scene?.updateGrid(engine.grid)
+            scene?.updateTray(engine.tray)
+        }
     }
 
     func cancelDrag() {
