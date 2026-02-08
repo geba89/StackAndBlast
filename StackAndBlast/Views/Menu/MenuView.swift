@@ -43,7 +43,7 @@ struct MenuView: View {
                 Spacer()
 
                 // High score
-                Text("BEST: 0")
+                Text("BEST: \(ScoreManager.shared.classicHighScore)")
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.semibold)
                     .foregroundStyle(.gray)

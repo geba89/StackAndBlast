@@ -36,9 +36,13 @@ final class GameViewModel {
     /// Whether the user wants to return to the main menu.
     var wantsQuitToMenu: Bool = false
 
+    /// The current game mode.
+    var gameMode: GameMode = .classic
+
     // MARK: - Actions
 
-    func startGame() {
+    func startGame(mode: GameMode = .classic) {
+        gameMode = mode
         isPaused = false
         wantsQuitToMenu = false
         engine.startNewGame()
@@ -87,6 +91,7 @@ final class GameViewModel {
 
         if result.gameOver && result.blastEvents.isEmpty {
             AudioManager.shared.playGameOver()
+            ScoreManager.shared.submitScore(engine.score, mode: gameMode)
         }
 
         if !result.blastEvents.isEmpty, let preBlastGrid = result.preBlastGrid {
@@ -107,6 +112,7 @@ final class GameViewModel {
                 self.scene?.updateTray(self.engine.tray)
                 if result.gameOver {
                     AudioManager.shared.playGameOver()
+                    ScoreManager.shared.submitScore(self.engine.score, mode: self.gameMode)
                 }
             }
         } else {

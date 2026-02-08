@@ -20,7 +20,7 @@ struct ContentView: View {
                         totalBlasts: viewModel.engine.totalBlasts,
                         piecesPlaced: viewModel.engine.piecesPlaced,
                         onPlayAgain: {
-                            viewModel.startGame()
+                            viewModel.startGame(mode: viewModel.gameMode)
                         },
                         onMainMenu: {
                             withAnimation {
@@ -35,8 +35,8 @@ struct ContentView: View {
                 MenuView(selectedMode: $selectedMode)
                     .transition(.opacity)
                     .onChange(of: selectedMode) { _, newMode in
-                        if newMode != nil {
-                            viewModel.startGame()
+                        if let mode = newMode {
+                            viewModel.startGame(mode: mode)
                         }
                     }
             }
