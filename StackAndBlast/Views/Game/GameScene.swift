@@ -30,6 +30,15 @@ final class GameScene: SKScene {
     /// Active block nodes keyed by Block UUID for O(1) lookup.
     private var blockNodes: [UUID: SKShapeNode] = [:]
 
+    /// Layer for the piece tray at the bottom of the screen.
+    private var trayNode = SKNode()
+
+    /// Tray piece container nodes keyed by Piece UUID for hit-testing.
+    var trayPieceNodes: [UUID: SKNode] = [:]
+
+    /// Scale factor for tray pieces relative to grid cells.
+    private let trayPieceScale: CGFloat = 0.6
+
     // MARK: - Lifecycle
 
     override func didMove(to view: SKView) {
@@ -46,6 +55,14 @@ final class GameScene: SKScene {
         blocksNode = SKNode()
         blocksNode.zPosition = 1
         addChild(blocksNode)
+
+        // Tray layer at the bottom
+        trayNode.removeFromParent()
+        trayNode = SKNode()
+        trayNode.zPosition = 1
+        addChild(trayNode)
+
+        setupTrayBackground()
     }
 
     // MARK: - Public API
@@ -82,6 +99,60 @@ final class GameScene: SKScene {
         for (id, node) in blockNodes where !newBlockIDs.contains(id) {
             node.removeFromParent()
             blockNodes.removeValue(forKey: id)
+        }
+    }
+
+    /// Update the piece tray to show the given pieces.
+    func updateTray(_ pieces: [Piece]) {
+        // Remove old piece nodes
+        for (_, node) in trayPieceNodes {
+            node.removeFromParent()
+        }
+        trayPieceNodes.removeAll()
+
+        guard !pieces.isEmpty else { return }
+
+        let trayY = size.height * 0.10
+        let trayWidth = size.width - gridPadding * 4
+        let slotWidth = trayWidth / CGFloat(pieces.count)
+        let startX = (size.width - trayWidth) / 2
+
+        for (index, piece) in pieces.enumerated() {
+            let container = SKNode()
+            container.name = "tray_piece_\(piece.id)"
+
+            // Calculate piece bounding box for centering
+            let minRow = piece.cells.map(\.row).min() ?? 0
+            let maxRow = piece.cells.map(\.row).max() ?? 0
+            let minCol = piece.cells.map(\.col).min() ?? 0
+            let maxCol = piece.cells.map(\.col).max() ?? 0
+            let pieceWidth = CGFloat(maxCol - minCol + 1)
+            let pieceHeight = CGFloat(maxRow - minRow + 1)
+
+            let miniCellSize = cellSize * trayPieceScale
+            let offsetX = -pieceWidth * miniCellSize / 2
+            let offsetY = pieceHeight * miniCellSize / 2
+
+            for cell in piece.cells {
+                let x = offsetX + CGFloat(cell.col - minCol) * miniCellSize + miniCellSize / 2
+                let y = offsetY - CGFloat(cell.row - minRow) * miniCellSize - miniCellSize / 2
+
+                let inset: CGFloat = 1.0
+                let blockSize = CGSize(width: miniCellSize - inset * 2, height: miniCellSize - inset * 2)
+                let blockNode = SKShapeNode(rectOf: blockSize, cornerRadius: 3)
+                blockNode.fillColor = piece.color.uiColor
+                blockNode.strokeColor = piece.color.uiColorDark
+                blockNode.lineWidth = 0.5
+                blockNode.position = CGPoint(x: x, y: y)
+                container.addChild(blockNode)
+            }
+
+            // Position in the tray slot
+            let slotCenterX = startX + slotWidth * (CGFloat(index) + 0.5)
+            container.position = CGPoint(x: slotCenterX, y: trayY)
+
+            trayNode.addChild(container)
+            trayPieceNodes[piece.id] = container
         }
     }
 
@@ -135,6 +206,23 @@ final class GameScene: SKScene {
                 gridNode.addChild(cell)
             }
         }
+    }
+
+    // MARK: - Tray Setup
+
+    /// Draw a subtle background pill behind the piece tray area.
+    private func setupTrayBackground() {
+        let trayY = size.height * 0.10
+        let trayWidth = size.width - gridPadding * 2
+        let trayHeight: CGFloat = cellSize * 2.5
+
+        let bg = SKShapeNode(rectOf: CGSize(width: trayWidth, height: trayHeight), cornerRadius: 12)
+        bg.fillColor = UIColor(red: 0.14, green: 0.17, blue: 0.19, alpha: 1)
+        bg.strokeColor = UIColor(red: 0.2, green: 0.23, blue: 0.25, alpha: 1)
+        bg.lineWidth = 0.5
+        bg.position = CGPoint(x: size.width / 2, y: trayY)
+        bg.zPosition = -1
+        trayNode.addChild(bg)
     }
 
     // MARK: - Layout Helpers
