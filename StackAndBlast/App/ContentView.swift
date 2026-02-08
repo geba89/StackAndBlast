@@ -43,5 +43,13 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: selectedMode)
         .preferredColorScheme(.dark)
+        .onChange(of: viewModel.wantsQuitToMenu) { _, wantsQuit in
+            if wantsQuit {
+                withAnimation {
+                    selectedMode = nil
+                }
+                viewModel.wantsQuitToMenu = false
+            }
+        }
     }
 }

@@ -30,12 +30,35 @@ final class GameViewModel {
     /// Current cascade combo level (for HUD display). 0 = no combo active.
     var currentCombo: Int = 0
 
+    /// Whether the game is paused.
+    var isPaused: Bool = false
+
+    /// Whether the user wants to return to the main menu.
+    var wantsQuitToMenu: Bool = false
+
     // MARK: - Actions
 
     func startGame() {
+        isPaused = false
+        wantsQuitToMenu = false
         engine.startNewGame()
         scene?.updateGrid(engine.grid)
         scene?.updateTray(engine.tray)
+    }
+
+    func togglePause() {
+        if engine.state == .playing {
+            engine.pause()
+            isPaused = true
+        } else if engine.state == .paused {
+            engine.resume()
+            isPaused = false
+        }
+    }
+
+    func quitToMenu() {
+        isPaused = false
+        wantsQuitToMenu = true
     }
 
     func beginDrag(piece: Piece) {

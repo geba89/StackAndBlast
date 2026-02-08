@@ -22,15 +22,15 @@ struct GameView: View {
 
             // HUD overlay
             VStack {
-                // Score bar
+                // Top bar: Score + Combo + Pause
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("SCORE")
-                            .font(.caption2)
+                            .font(.system(.caption2, design: .rounded))
                             .fontWeight(.medium)
                             .foregroundStyle(.gray)
                         Text("\(viewModel.engine.score)")
-                            .font(.title2)
+                            .font(.system(.title2, design: .rounded))
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
                             .contentTransition(.numericText())
@@ -39,8 +39,17 @@ struct GameView: View {
 
                     Spacer()
 
+                    // Combo counter — visible during blast cascades
+                    if viewModel.currentCombo > 1 {
+                        ComboLabel(level: viewModel.currentCombo)
+                            .transition(.scale.combined(with: .opacity))
+                            .animation(.spring(duration: 0.3, bounce: 0.4), value: viewModel.currentCombo)
+                    }
+
+                    Spacer()
+
                     Button {
-                        // TODO: Pause action (Commit 5)
+                        viewModel.togglePause()
                     } label: {
                         Image(systemName: "pause.fill")
                             .font(.title3)
@@ -53,11 +62,95 @@ struct GameView: View {
 
                 Spacer()
             }
+
+            // Pause overlay
+            if viewModel.isPaused {
+                PauseOverlay(
+                    onResume: { viewModel.togglePause() },
+                    onRestart: { viewModel.startGame() },
+                    onQuit: { viewModel.quitToMenu() }
+                )
+                .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isPaused)
         .onAppear {
-            // Wire the scene ↔ viewModel bridge
             scene.viewModel = viewModel
             viewModel.scene = scene
+        }
+    }
+}
+
+// MARK: - Combo Label
+
+/// Displays the cascade combo multiplier with escalating visual effects per GDD.
+private struct ComboLabel: View {
+    let level: Int
+
+    private var color: Color {
+        switch level {
+        case 2: return .orange
+        case 3: return .red
+        default: return Color(red: 1.0, green: 0.84, blue: 0.0) // Gold
+        }
+    }
+
+    var body: some View {
+        Text("×\(level)")
+            .font(.system(size: level >= 4 ? 32 : 28, weight: .black, design: .rounded))
+            .foregroundStyle(color)
+            .shadow(color: color.opacity(level >= 3 ? 0.8 : 0), radius: 8)
+    }
+}
+
+// MARK: - Pause Overlay
+
+private struct PauseOverlay: View {
+    let onResume: () -> Void
+    let onRestart: () -> Void
+    let onQuit: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                Text("PAUSED")
+                    .font(.system(size: 36, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+
+                VStack(spacing: 12) {
+                    PauseButton(title: "RESUME", color: Color(red: 0.0, green: 0.722, blue: 0.580)) {
+                        onResume()
+                    }
+                    PauseButton(title: "RESTART", color: Color(red: 0.035, green: 0.518, blue: 0.890)) {
+                        onRestart()
+                    }
+                    PauseButton(title: "QUIT", color: Color(red: 0.424, green: 0.361, blue: 0.906)) {
+                        onQuit()
+                    }
+                }
+            }
+            .padding(32)
+        }
+    }
+}
+
+private struct PauseButton: View {
+    let title: String
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(.headline, design: .rounded))
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+                .frame(width: 200)
+                .padding(.vertical, 14)
+                .background(color, in: RoundedRectangle(cornerRadius: 12))
         }
     }
 }
