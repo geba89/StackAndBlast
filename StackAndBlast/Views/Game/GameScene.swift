@@ -201,20 +201,254 @@ final class GameScene: SKScene {
         return node
     }
 
-    // MARK: - Blast Animation (stub — full implementation in Commit 6)
+    // MARK: - Blast Animation System
 
-    /// Animate a blast sequence. For now, just applies the final grid state immediately.
+    /// Animate a full blast sequence with cascading events (GDD section 3.4).
+    /// Shows the pre-blast grid, then processes each cascade level in sequence,
+    /// and finally displays the resolved grid state.
     func animateBlastSequence(
         events: [BlastEvent],
         preBlastGrid: [[Block?]],
         finalGrid: [[Block?]],
         completion: @escaping () -> Void
     ) {
-        // Show the pre-blast state briefly, then snap to final
+        // Show the board with all pieces placed (lines are full, about to blast)
         updateGrid(preBlastGrid)
 
-        run(SKAction.wait(forDuration: 0.3)) { [weak self] in
-            self?.updateGrid(finalGrid)
+        // Process events sequentially
+        animateNextEvent(events: events, index: 0, finalGrid: finalGrid, completion: completion)
+    }
+
+    /// Recursively process blast events one at a time.
+    private func animateNextEvent(
+        events: [BlastEvent],
+        index: Int,
+        finalGrid: [[Block?]],
+        completion: @escaping () -> Void
+    ) {
+        guard index < events.count else {
+            // All blast events animated — show the final resolved grid
+            updateGrid(finalGrid)
+            completion()
+            return
+        }
+
+        let event = events[index]
+        animateSingleBlast(event: event) { [weak self] in
+            // Brief pause between cascade levels
+            self?.run(SKAction.wait(forDuration: GameConstants.pushSettleDuration)) {
+                self?.animateNextEvent(events: events, index: index + 1,
+                                       finalGrid: finalGrid, completion: completion)
+            }
+        }
+    }
+
+    /// Animate one blast event through all phases: detonate → particles → shockwave → swap.
+    private func animateSingleBlast(event: BlastEvent, completion: @escaping () -> Void) {
+        let allClearedPositions = collectClearedPositions(event: event)
+
+        // Phase 1: DETONATE — flash white, then fade out cleared blocks
+        let detonateGroup = SKAction.sequence([
+            SKAction.colorize(with: .white, colorBlendFactor: 1.0, duration: GameConstants.detonateFlashDuration),
+            SKAction.group([
+                SKAction.fadeOut(withDuration: 0.15),
+                SKAction.scale(to: 1.4, duration: 0.15)
+            ])
+        ])
+
+        // Find nodes to detonate
+        var nodesToDetonate: [SKShapeNode] = []
+        for (_, node) in blockNodes {
+            // Check if this block is at a cleared position
+            let nodeGridPos = gridPosition(for: node.position)
+            if let pos = nodeGridPos,
+               allClearedPositions.contains(pos) {
+                nodesToDetonate.append(node)
+            }
+        }
+
+        // Run detonation on all cleared blocks simultaneously
+        let detonateFinished = DispatchGroup()
+        for node in nodesToDetonate {
+            detonateFinished.enter()
+            node.run(detonateGroup) {
+                node.removeFromParent()
+                detonateFinished.leave()
+            }
+        }
+
+        // Remove detonated blocks from tracking
+        blockNodes = blockNodes.filter { _, node in !nodesToDetonate.contains(node) }
+
+        // After detonation completes, run particles + shockwave + swap
+        DispatchQueue.main.asyncAfter(deadline: .now() + GameConstants.detonateFlashDuration + 0.15) { [weak self] in
+            guard let self else { completion(); return }
+
+            // Phase 2: PARTICLE EXPLOSION
+            self.spawnExplosionParticles(at: allClearedPositions, event: event)
+
+            // Phase 3: SCREEN SHAKE
+            self.runScreenShake()
+
+            // Phase 3b: SHOCKWAVE RINGS
+            self.spawnShockwaves(event: event)
+
+            // Phase 4: SWAP/PUSH ANIMATIONS
+            self.animateDisplacements(event: event) {
+                completion()
+            }
+        }
+    }
+
+    /// Collect all grid positions that were cleared by this blast event.
+    private func collectClearedPositions(event: BlastEvent) -> Set<GridPosition> {
+        var positions = Set<GridPosition>()
+        for row in event.clearedRows {
+            for col in 0..<GameConstants.gridSize {
+                positions.insert(GridPosition(row: row, col: col))
+            }
+        }
+        for col in event.clearedColumns {
+            for row in 0..<GameConstants.gridSize {
+                positions.insert(GridPosition(row: row, col: col))
+            }
+        }
+        return positions
+    }
+
+    /// Spawn particle explosion effects at each cleared cell position.
+    private func spawnExplosionParticles(at positions: Set<GridPosition>, event: BlastEvent) {
+        for pos in positions {
+            let scenePos = scenePosition(for: pos)
+
+            // Create a burst of small colored squares
+            for _ in 0..<6 {
+                let particle = SKShapeNode(rectOf: CGSize(width: 4, height: 4), cornerRadius: 1)
+                particle.fillColor = UIColor(red: 1.0, green: 0.7, blue: 0.3, alpha: 1) // warm orange
+                particle.strokeColor = .clear
+                particle.position = scenePos
+                particle.zPosition = 5
+                addChild(particle)
+
+                // Random direction and distance
+                let angle = CGFloat.random(in: 0...(2 * .pi))
+                let distance = CGFloat.random(in: 20...60)
+                let dx = cos(angle) * distance
+                let dy = sin(angle) * distance
+
+                let move = SKAction.moveBy(x: dx, y: dy, duration: 0.3)
+                move.timingMode = .easeOut
+                let fade = SKAction.fadeOut(withDuration: 0.3)
+                let scale = SKAction.scale(to: 0.2, duration: 0.3)
+
+                particle.run(SKAction.group([move, fade, scale])) {
+                    particle.removeFromParent()
+                }
+            }
+        }
+    }
+
+    /// Run screen shake on the grid node.
+    private func runScreenShake() {
+        let originalPosition = gridNode.position
+        let shakeAction = SKAction.customAction(withDuration: 0.2) { node, elapsed in
+            let progress = elapsed / 0.2
+            let amplitude: CGFloat = 3.0 * (1.0 - progress) // decaying amplitude
+            node.position = CGPoint(
+                x: originalPosition.x + CGFloat.random(in: -amplitude...amplitude),
+                y: originalPosition.y + CGFloat.random(in: -amplitude...amplitude)
+            )
+        }
+        let resetPosition = SKAction.move(to: originalPosition, duration: 0.02)
+        gridNode.run(SKAction.sequence([shakeAction, resetPosition]))
+    }
+
+    /// Spawn shockwave ring effects for cleared rows and columns.
+    private func spawnShockwaves(event: BlastEvent) {
+        let gridWidth = cellSize * CGFloat(GameConstants.gridSize)
+
+        // Horizontal shockwaves for cleared rows
+        for row in event.clearedRows {
+            let y = gridOrigin.y - CGFloat(row) * cellSize - cellSize / 2
+            let wave = SKShapeNode(rectOf: CGSize(width: gridWidth, height: 2))
+            wave.fillColor = UIColor.white.withAlphaComponent(0.4)
+            wave.strokeColor = .clear
+            wave.position = CGPoint(x: size.width / 2, y: y)
+            wave.zPosition = 4
+            addChild(wave)
+
+            let expand = SKAction.scaleY(to: 8, duration: GameConstants.shockwaveFadeDuration)
+            let fade = SKAction.fadeOut(withDuration: GameConstants.shockwaveFadeDuration)
+            wave.run(SKAction.group([expand, fade])) {
+                wave.removeFromParent()
+            }
+        }
+
+        // Vertical shockwaves for cleared columns
+        let gridHeight = cellSize * CGFloat(GameConstants.gridSize)
+        for col in event.clearedColumns {
+            let x = gridOrigin.x + CGFloat(col) * cellSize + cellSize / 2
+            let wave = SKShapeNode(rectOf: CGSize(width: 2, height: gridHeight))
+            wave.fillColor = UIColor.white.withAlphaComponent(0.4)
+            wave.strokeColor = .clear
+            wave.position = CGPoint(x: x, y: gridOrigin.y - gridHeight / 2)
+            wave.zPosition = 4
+            addChild(wave)
+
+            let expand = SKAction.scaleX(to: 8, duration: GameConstants.shockwaveFadeDuration)
+            let fade = SKAction.fadeOut(withDuration: GameConstants.shockwaveFadeDuration)
+            wave.run(SKAction.group([expand, fade])) {
+                wave.removeFromParent()
+            }
+        }
+    }
+
+    /// Animate block displacements from the shockwave push.
+    private func animateDisplacements(event: BlastEvent, completion: @escaping () -> Void) {
+        guard !event.displacements.isEmpty else {
+            completion()
+            return
+        }
+
+        let animationGroup = DispatchGroup()
+
+        for (blockID, displacement) in event.displacements {
+            guard let node = blockNodes[blockID] else { continue }
+
+            let dx = CGFloat(displacement.col) * cellSize
+            let dy = -CGFloat(displacement.row) * cellSize // SpriteKit y is inverted
+
+            animationGroup.enter()
+
+            // Check if this block is part of a swap pair for curved arc animation
+            let isSwap = event.swapPairs.contains { $0.0 == blockID || $0.1 == blockID }
+
+            if isSwap {
+                // Curved arc path for swaps — blocks curve slightly as they pass each other
+                let arcHeight: CGFloat = cellSize * 0.4
+                let midPoint = CGPoint(
+                    x: node.position.x + dx / 2,
+                    y: node.position.y + dy / 2 + arcHeight
+                )
+                let endPoint = CGPoint(x: node.position.x + dx, y: node.position.y + dy)
+
+                let path = CGMutablePath()
+                path.move(to: node.position)
+                path.addQuadCurve(to: endPoint, control: midPoint)
+
+                let followPath = SKAction.follow(path, asOffset: false, orientToPath: false,
+                                                  duration: GameConstants.swapAnimationDuration)
+                followPath.timingMode = .easeInEaseOut
+                node.run(followPath) { animationGroup.leave() }
+            } else {
+                // Simple slide for non-swap displacements
+                let move = SKAction.moveBy(x: dx, y: dy, duration: GameConstants.swapAnimationDuration)
+                move.timingMode = .easeInEaseOut
+                node.run(move) { animationGroup.leave() }
+            }
+        }
+
+        animationGroup.notify(queue: .main) {
             completion()
         }
     }
