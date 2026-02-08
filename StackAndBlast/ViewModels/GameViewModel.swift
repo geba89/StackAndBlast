@@ -81,6 +81,14 @@ final class GameViewModel {
 
         guard result.success else { return }
 
+        // Audio + haptic feedback for successful placement
+        AudioManager.shared.playPlacement()
+        HapticManager.shared.playPlacement()
+
+        if result.gameOver && result.blastEvents.isEmpty {
+            AudioManager.shared.playGameOver()
+        }
+
         if !result.blastEvents.isEmpty, let preBlastGrid = result.preBlastGrid {
             // Blast occurred — queue animations
             isAnimating = true
@@ -97,6 +105,9 @@ final class GameViewModel {
                 self.scene?.isAnimating = false
                 self.currentCombo = 0
                 self.scene?.updateTray(self.engine.tray)
+                if result.gameOver {
+                    AudioManager.shared.playGameOver()
+                }
             }
         } else {
             // No blast — just update the grid and tray immediately

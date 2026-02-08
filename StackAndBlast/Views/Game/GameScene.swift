@@ -234,6 +234,13 @@ final class GameScene: SKScene {
         }
 
         let event = events[index]
+
+        // Play cascade audio/haptic for chain reactions (level > 0)
+        if event.cascadeLevel > 0 {
+            AudioManager.shared.playCascade(level: event.cascadeLevel)
+            HapticManager.shared.playCascade()
+        }
+
         animateSingleBlast(event: event) { [weak self] in
             // Brief pause between cascade levels
             self?.run(SKAction.wait(forDuration: GameConstants.pushSettleDuration)) {
@@ -246,6 +253,9 @@ final class GameScene: SKScene {
     /// Animate one blast event through all phases: detonate → particles → shockwave → swap.
     private func animateSingleBlast(event: BlastEvent, completion: @escaping () -> Void) {
         let allClearedPositions = collectClearedPositions(event: event)
+
+        // Audio: line completion chime as warning before blast
+        AudioManager.shared.playLineCompleteChime()
 
         // Phase 1: DETONATE — flash white, then fade out cleared blocks
         let detonateGroup = SKAction.sequence([
@@ -284,6 +294,10 @@ final class GameScene: SKScene {
         DispatchQueue.main.asyncAfter(deadline: .now() + GameConstants.detonateFlashDuration + 0.15) { [weak self] in
             guard let self else { completion(); return }
 
+            // Audio + haptics for blast
+            AudioManager.shared.playBlast()
+            HapticManager.shared.playBlast()
+
             // Phase 2: PARTICLE EXPLOSION
             self.spawnExplosionParticles(at: allClearedPositions, event: event)
 
@@ -292,6 +306,11 @@ final class GameScene: SKScene {
 
             // Phase 3b: SHOCKWAVE RINGS
             self.spawnShockwaves(event: event)
+
+            // Audio for swap
+            if !event.swapPairs.isEmpty {
+                AudioManager.shared.playSwap()
+            }
 
             // Phase 4: SWAP/PUSH ANIMATIONS
             self.animateDisplacements(event: event) {
@@ -483,6 +502,8 @@ final class GameScene: SKScene {
                 trayNode.alpha = 0.3
 
                 viewModel?.beginDrag(piece: piece)
+                AudioManager.shared.playPickup(cellCount: piece.cellCount)
+                HapticManager.shared.playPickup()
                 break
             }
         }
