@@ -22,7 +22,7 @@ struct GameView: View {
 
             // HUD overlay
             VStack {
-                // Top bar: Score + Combo + Pause
+                // Top bar: Score + Combo + Timer + Pause
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("SCORE")
@@ -44,6 +44,12 @@ struct GameView: View {
                         ComboLabel(level: viewModel.currentCombo)
                             .transition(.scale.combined(with: .opacity))
                             .animation(.spring(duration: 0.3, bounce: 0.4), value: viewModel.currentCombo)
+                    }
+
+                    // Blast Rush timer
+                    if viewModel.gameMode == .blastRush {
+                        Spacer()
+                        BlastRushTimerLabel(timeRemaining: viewModel.timeRemaining)
                     }
 
                     Spacer()
@@ -100,6 +106,33 @@ private struct ComboLabel: View {
             .font(.system(size: level >= 4 ? 32 : 28, weight: .black, design: .rounded))
             .foregroundStyle(color)
             .shadow(color: color.opacity(level >= 3 ? 0.8 : 0), radius: 8)
+    }
+}
+
+// MARK: - Blast Rush Timer Label
+
+/// Displays the countdown timer for Blast Rush mode.
+/// Turns red and pulses when under 10 seconds remaining.
+private struct BlastRushTimerLabel: View {
+    let timeRemaining: TimeInterval
+
+    private var isUrgent: Bool { timeRemaining < 10 }
+
+    private var formattedTime: String {
+        let clamped = max(timeRemaining, 0)
+        let minutes = Int(clamped) / 60
+        let seconds = Int(clamped) % 60
+        let tenths = Int(clamped * 10) % 10
+        return String(format: "%d:%02d.%d", minutes, seconds, tenths)
+    }
+
+    var body: some View {
+        Text(formattedTime)
+            .font(.system(.title3, design: .monospaced))
+            .fontWeight(.bold)
+            .foregroundStyle(isUrgent ? .red : .white)
+            .opacity(isUrgent ? (Int(timeRemaining * 5) % 2 == 0 ? 1.0 : 0.6) : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: timeRemaining)
     }
 }
 

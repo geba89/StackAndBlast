@@ -39,6 +39,14 @@ final class GameViewModel {
     /// The current game mode.
     var gameMode: GameMode = .classic
 
+    // MARK: - Blast Rush Timer
+
+    /// Time remaining in Blast Rush mode (seconds).
+    var timeRemaining: TimeInterval = 0
+
+    /// Timer for Blast Rush countdown.
+    private var blastRushTimer: Timer?
+
     // MARK: - Actions
 
     func startGame(mode: GameMode = .classic) {
@@ -48,6 +56,14 @@ final class GameViewModel {
         engine.startNewGame()
         scene?.updateGrid(engine.grid)
         scene?.updateTray(engine.tray)
+
+        // Start Blast Rush timer if applicable
+        blastRushTimer?.invalidate()
+        blastRushTimer = nil
+        if mode == .blastRush {
+            timeRemaining = 90
+            startBlastRushTimer()
+        }
     }
 
     func togglePause() {
@@ -63,6 +79,8 @@ final class GameViewModel {
     func quitToMenu() {
         isPaused = false
         wantsQuitToMenu = true
+        blastRushTimer?.invalidate()
+        blastRushTimer = nil
     }
 
     func beginDrag(piece: Piece) {
@@ -95,6 +113,9 @@ final class GameViewModel {
         }
 
         if !result.blastEvents.isEmpty, let preBlastGrid = result.preBlastGrid {
+            // Add time bonus in Blast Rush mode
+            addBlastRushTimeBonus(blastCount: result.blastEvents.count)
+
             // Blast occurred — queue animations
             isAnimating = true
             scene?.isAnimating = true
@@ -125,5 +146,30 @@ final class GameViewModel {
     func cancelDrag() {
         draggedPiece = nil
         hoverPosition = nil
+    }
+
+    // MARK: - Blast Rush Timer
+
+    private func startBlastRushTimer() {
+        blastRushTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            guard self.engine.state == .playing else { return }
+
+            self.timeRemaining -= 0.1
+            if self.timeRemaining <= 0 {
+                self.timeRemaining = 0
+                self.blastRushTimer?.invalidate()
+                self.blastRushTimer = nil
+                self.engine.endGame()
+                AudioManager.shared.playGameOver()
+                ScoreManager.shared.submitScore(self.engine.score, mode: .blastRush)
+            }
+        }
+    }
+
+    /// Add bonus time for blasts in Blast Rush mode (GDD: +5s per blast).
+    private func addBlastRushTimeBonus(blastCount: Int) {
+        guard gameMode == .blastRush else { return }
+        timeRemaining += 5.0 * Double(blastCount)
     }
 }
