@@ -1,5 +1,20 @@
 import Foundation
 
+/// Result of placing a piece — contains everything the view layer needs for animation.
+struct PlacementResult {
+    /// Whether placement was successful.
+    let success: Bool
+    /// Blast events in cascade order (empty if no lines cleared).
+    let blastEvents: [BlastEvent]
+    /// Grid snapshot BEFORE blasts resolved (for animation diffing). Nil if no blasts.
+    let preBlastGrid: [[Block?]]?
+    /// Whether the game ended after this placement.
+    let gameOver: Bool
+
+    /// Convenience for failed placements.
+    static let failed = PlacementResult(success: false, blastEvents: [], preBlastGrid: nil, gameOver: false)
+}
+
 /// Core game logic: owns the grid state, handles placement, scoring, and blast resolution.
 /// This is the "single source of truth" for the game — views observe it via GameViewModel.
 @Observable
@@ -53,16 +68,16 @@ final class GameEngine {
     }
 
     /// Attempt to place a piece at the given grid origin.
-    /// Returns `true` if placement was valid and executed.
+    /// Returns a `PlacementResult` with blast events and grid snapshot for animation.
     @discardableResult
-    func placePiece(_ piece: Piece, at origin: GridPosition) -> Bool {
-        guard state == .playing else { return false }
+    func placePiece(_ piece: Piece, at origin: GridPosition) -> PlacementResult {
+        guard state == .playing else { return .failed }
 
         let positions = piece.absolutePositions(at: origin)
 
         // Validate: all positions must be in-bounds and empty
         guard positions.allSatisfy({ $0.isValid && grid[$0.row][$0.col] == nil }) else {
-            return false
+            return .failed
         }
 
         // Place blocks on the grid
@@ -76,8 +91,11 @@ final class GameEngine {
         // Remove the placed piece from the tray
         tray.removeAll { $0.id == piece.id }
 
+        // Snapshot the grid BEFORE blast resolution (for animation diffing)
+        let preBlastGrid = grid
+
         // Check for line completions and resolve blasts
-        resolveBlasts()
+        let blastEvents = resolveBlasts()
 
         // Refill tray if empty
         if tray.isEmpty {
@@ -85,11 +103,37 @@ final class GameEngine {
         }
 
         // Check for game over
+        let isGameOver: Bool
         if !canPlaceAnyPiece() {
             state = .gameOver
+            isGameOver = true
+        } else {
+            isGameOver = false
         }
 
-        return true
+        return PlacementResult(
+            success: true,
+            blastEvents: blastEvents,
+            preBlastGrid: blastEvents.isEmpty ? nil : preBlastGrid,
+            gameOver: isGameOver
+        )
+    }
+
+    /// Pause the game.
+    func pause() {
+        guard state == .playing else { return }
+        state = .paused
+    }
+
+    /// Resume from pause.
+    func resume() {
+        guard state == .paused else { return }
+        state = .playing
+    }
+
+    /// Force end the game (e.g. timer ran out in Blast Rush mode).
+    func endGame() {
+        state = .gameOver
     }
 
     // MARK: - Query
@@ -109,7 +153,9 @@ final class GameEngine {
     // MARK: - Private
 
     /// Resolve all blast chains until no more lines are complete.
-    private func resolveBlasts() {
+    /// Returns all blast events in cascade order for animation.
+    private func resolveBlasts() -> [BlastEvent] {
+        var allEvents: [BlastEvent] = []
         var cascadeLevel = 0
 
         while cascadeLevel < GameConstants.maxCascadeDepth {
@@ -124,8 +170,11 @@ final class GameEngine {
                 maxCombo = max(maxCombo, cascadeLevel + 1)
             }
 
+            allEvents.append(contentsOf: events)
             cascadeLevel += 1
         }
+
+        return allEvents
     }
 
     /// Calculate score for a blast event using the GDD scoring table.
