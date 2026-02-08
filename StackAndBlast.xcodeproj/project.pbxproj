@@ -13,6 +13,7 @@
 		4247F864382BB0C75FA7791B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DF822985854CD79D4F7FF3 /* ContentView.swift */; };
 		42BFC259306B7ECAE2FA0020 /* BlastEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C177F1794EA045DC89D21328 /* BlastEvent.swift */; };
 		4B03B366641A855CD398A6AC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 34F4F98851E91ABEFDD49E69 /* Assets.xcassets */; };
+		51E25C7F60ED892D6B7DAA2F /* BlockColor+UIColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47575FCA3D5A3FB0FF1CA4FF /* BlockColor+UIColor.swift */; };
 		56198142E3F158F14D38E7A8 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 287551890F36D3D3784D148B /* AudioManager.swift */; };
 		6934C3A6F8A4B5FC5198A2DF /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E06AF75DD5A0940662C3210 /* GameView.swift */; };
 		752B24006740E5B7B62744A5 /* MenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B18E895F6DF338D02839E2BF /* MenuView.swift */; };
@@ -45,6 +46,7 @@
 		35410307CB0485E379F242BC /* GameEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameEngine.swift; sourceTree = "<group>"; };
 		3E041E31ABA6640BB69424E1 /* SpriteKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SpriteKit.framework; path = System/Library/Frameworks/SpriteKit.framework; sourceTree = SDKROOT; };
 		46844794FCD929AB7F973184 /* Piece.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Piece.swift; sourceTree = "<group>"; };
+		47575FCA3D5A3FB0FF1CA4FF /* BlockColor+UIColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BlockColor+UIColor.swift"; sourceTree = "<group>"; };
 		5984C42DCDD80F769923B18F /* Color+Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Theme.swift"; sourceTree = "<group>"; };
 		60E40AA8213878C44047FB5A /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		62327C330D30E51A4A3090C2 /* PieceGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PieceGenerator.swift; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 		BB3181D54C2DC477C4B96BD4 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				47575FCA3D5A3FB0FF1CA4FF /* BlockColor+UIColor.swift */,
 				5984C42DCDD80F769923B18F /* Color+Theme.swift */,
 			);
 			path = Extensions;
@@ -296,6 +299,7 @@
 				42BFC259306B7ECAE2FA0020 /* BlastEvent.swift in Sources */,
 				9ECEACB349255265707355EC /* BlastResolver.swift in Sources */,
 				C13C96DEC4CAFA1AE4EC7C85 /* Block.swift in Sources */,
+				51E25C7F60ED892D6B7DAA2F /* BlockColor+UIColor.swift in Sources */,
 				2E34CA91FABBDE69F783B63B /* Color+Theme.swift in Sources */,
 				4247F864382BB0C75FA7791B /* ContentView.swift in Sources */,
 				E247F321403DBBC171E44FEA /* GameConstants.swift in Sources */,
