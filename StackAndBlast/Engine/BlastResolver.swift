@@ -111,22 +111,32 @@ final class BlastResolver {
         swapPairs: inout [(UUID, UUID)]
     ) {
         let size = GameConstants.gridSize
+        let originalRow = grid[row]
         var newRow: [Block?] = Array(repeating: nil, count: size)
 
         for col in 0..<size {
-            guard var block = grid[row][col] else { continue }
+            guard var block = originalRow[col] else { continue }
 
-            // Skip blocks already displaced this blast
-            guard displacements[block.id] == nil else { continue }
+            // Skip blocks already displaced this blast — keep at current position
+            guard displacements[block.id] == nil else {
+                newRow[col] = block
+                continue
+            }
 
             let newCol = (col + direction + size) % size
             let displacement = GridPosition(row: 0, col: direction)
 
-            if let existing = grid[row][newCol], existing.id != block.id {
+            if let existing = originalRow[newCol], existing.id != block.id,
+               displacements[existing.id] == nil {
                 // Swap: two blocks exchange positions
                 swapPairs.append((block.id, existing.id))
                 displacements[block.id] = displacement
                 displacements[existing.id] = GridPosition(row: 0, col: -direction)
+
+                // Move existing to this block's old position
+                var swappedExisting = existing
+                swappedExisting.position = GridPosition(row: row, col: col)
+                newRow[col] = swappedExisting
             } else {
                 displacements[block.id] = displacement
             }
@@ -135,12 +145,8 @@ final class BlastResolver {
             newRow[newCol] = block
         }
 
-        // Apply the shifted row back to the grid
-        for col in 0..<size {
-            if let block = newRow[col] {
-                grid[row][col] = block
-            }
-        }
+        // Replace entire row — clears old positions and writes new ones
+        grid[row] = newRow
     }
 
     /// Shift all blocks in a column by `direction` rows (+1 = down, -1 = up) with wrapping.
@@ -152,21 +158,33 @@ final class BlastResolver {
         swapPairs: inout [(UUID, UUID)]
     ) {
         let size = GameConstants.gridSize
+        // Snapshot the column before mutation
+        let originalCol: [Block?] = (0..<size).map { grid[$0][col] }
         var newCol: [Block?] = Array(repeating: nil, count: size)
 
         for row in 0..<size {
-            guard var block = grid[row][col] else { continue }
+            guard var block = originalCol[row] else { continue }
 
-            // Skip blocks already displaced this blast
-            guard displacements[block.id] == nil else { continue }
+            // Skip blocks already displaced this blast — keep at current position
+            guard displacements[block.id] == nil else {
+                newCol[row] = block
+                continue
+            }
 
             let newRow = (row + direction + size) % size
             let displacement = GridPosition(row: direction, col: 0)
 
-            if let existing = grid[newRow][col], existing.id != block.id {
+            if let existing = originalCol[newRow], existing.id != block.id,
+               displacements[existing.id] == nil {
+                // Swap: two blocks exchange positions
                 swapPairs.append((block.id, existing.id))
                 displacements[block.id] = displacement
                 displacements[existing.id] = GridPosition(row: -direction, col: 0)
+
+                // Move existing to this block's old position
+                var swappedExisting = existing
+                swappedExisting.position = GridPosition(row: row, col: col)
+                newCol[row] = swappedExisting
             } else {
                 displacements[block.id] = displacement
             }
@@ -175,10 +193,9 @@ final class BlastResolver {
             newCol[newRow] = block
         }
 
+        // Replace entire column — clears old positions and writes new ones
         for row in 0..<size {
-            if let block = newCol[row] {
-                grid[row][col] = block
-            }
+            grid[row][col] = newCol[row]
         }
     }
 }
