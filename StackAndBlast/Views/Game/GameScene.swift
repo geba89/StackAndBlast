@@ -77,14 +77,23 @@ final class GameScene: SKScene {
         blocksNode = SKNode()
         blocksNode.zPosition = 1
         addChild(blocksNode)
+        blockNodes.removeAll()
 
         // Tray layer at the bottom
         trayNode.removeFromParent()
         trayNode = SKNode()
         trayNode.zPosition = 1
         addChild(trayNode)
+        trayPieceNodes.removeAll()
 
         setupTrayBackground()
+
+        // Push current engine state if ViewModel is already wired
+        // (handles race between didMove, .onAppear, and .onChange ordering)
+        if let vm = viewModel {
+            updateGrid(vm.engine.grid)
+            updateTray(vm.engine.tray)
+        }
     }
 
     // MARK: - Public API
@@ -371,8 +380,8 @@ final class GameScene: SKScene {
     private func runScreenShake() {
         let originalPosition = gridNode.position
         let shakeAction = SKAction.customAction(withDuration: 0.2) { node, elapsed in
-            let progress = elapsed / 0.2
-            let amplitude: CGFloat = 3.0 * (1.0 - progress) // decaying amplitude
+            let progress = min(elapsed / 0.2, 1.0) // clamp — elapsed can overshoot duration
+            let amplitude: CGFloat = 3.0 * (1.0 - progress)
             node.position = CGPoint(
                 x: originalPosition.x + CGFloat.random(in: -amplitude...amplitude),
                 y: originalPosition.y + CGFloat.random(in: -amplitude...amplitude)

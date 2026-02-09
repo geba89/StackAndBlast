@@ -34,15 +34,15 @@ struct ContentView: View {
                 // Main menu
                 MenuView(selectedMode: $selectedMode)
                     .transition(.opacity)
-                    .onChange(of: selectedMode) { _, newMode in
-                        if let mode = newMode {
-                            viewModel.startGame(mode: mode)
-                        }
-                    }
             }
         }
         .animation(.easeInOut(duration: 0.3), value: selectedMode)
         .preferredColorScheme(.dark)
+        .onChange(of: selectedMode) { _, newMode in
+            if let mode = newMode {
+                viewModel.startGame(mode: mode)
+            }
+        }
         .onChange(of: viewModel.wantsQuitToMenu) { _, wantsQuit in
             if wantsQuit {
                 withAnimation {

@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -58,7 +58,7 @@
 		8E080DFA663D3EDCC037B192 /* GridPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridPosition.swift; sourceTree = "<group>"; };
 		8E0F760C81FBEDB8604C14BA /* GameKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameKit.framework; path = System/Library/Frameworks/GameKit.framework; sourceTree = SDKROOT; };
 		A900B4DADFC0A78696343DDB /* Block.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Block.swift; sourceTree = "<group>"; };
-		AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StackAndBlast.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stack & Blast.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B18E895F6DF338D02839E2BF /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
 		C177F1794EA045DC89D21328 /* BlastEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlastEvent.swift; sourceTree = "<group>"; };
 		CDD5466C591FCD437983192F /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
@@ -193,7 +193,7 @@
 		B7FBF46E9D7989B34A0F81D6 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */,
+				AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -251,7 +251,7 @@
 			packageProductDependencies = (
 			);
 			productName = StackAndBlast;
-			productReference = AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */;
+			productReference = AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -273,7 +273,6 @@
 			);
 			mainGroup = 304A89242F535AA6167DF549;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -397,6 +396,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Stack & Blast";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -426,6 +426,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Stack & Blast";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

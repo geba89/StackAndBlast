@@ -83,6 +83,9 @@ struct GameView: View {
         .onAppear {
             scene.viewModel = viewModel
             viewModel.scene = scene
+            // Push current engine state — startGame may have run before scene was wired
+            scene.updateGrid(viewModel.engine.grid)
+            scene.updateTray(viewModel.engine.tray)
         }
     }
 }
