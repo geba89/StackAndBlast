@@ -41,6 +41,8 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         GENERATE_INFOPLIST_FILE: true
         SWIFT_EMIT_LOC_STRINGS: true
+        # Google AdMob test application ID — replace with real ID before release
+        INFOPLIST_KEY_GADApplicationIdentifier: "ca-app-pub-3940256099942544~1458002511"
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
