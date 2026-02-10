@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -20,6 +20,7 @@
 		752B24006740E5B7B62744A5 /* MenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B18E895F6DF338D02839E2BF /* MenuView.swift */; };
 		865E171320EF18564FA52580 /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4622D61C74A621F8FA0872F /* GameViewModel.swift */; };
 		8B8547D7C7087239C602A9A4 /* GridPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E080DFA663D3EDCC037B192 /* GridPosition.swift */; };
+		9A1A3ECD7E2C1F3FBC5C8CCA /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 5A547CDAF2AB744276325F8D /* GoogleMobileAds */; };
 		9BDD592D2DDEF0D0D52F5461 /* Piece.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46844794FCD929AB7F973184 /* Piece.swift */; };
 		9C11C0EBA703BD31462D105F /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60E40AA8213878C44047FB5A /* HapticManager.swift */; };
 		9ECEACB349255265707355EC /* BlastResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E516E8BC9128118BF11F630 /* BlastResolver.swift */; };
@@ -29,6 +30,7 @@
 		C13C96DEC4CAFA1AE4EC7C85 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = A900B4DADFC0A78696343DDB /* Block.swift */; };
 		D05433F3BA7BEF3E9A834945 /* SpriteKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3E041E31ABA6640BB69424E1 /* SpriteKit.framework */; };
 		D1125AC5FC22790363B29439 /* PieceGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62327C330D30E51A4A3090C2 /* PieceGenerator.swift */; };
+		D83FE6EA0F54360640D2E01E /* AdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9004A7DF9DBCD18E17E1D3C6 /* AdManager.swift */; };
 		D93785190AFCFB7966E1F688 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F98B45465F8556B9B99E8285 /* StoreKit.framework */; };
 		D9A8271CB3389FF7A684073D /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D99EFBCD94DFC012B5E70FBA /* CoreHaptics.framework */; };
 		DC3E06C4BFBA187AAA962B0F /* PieceDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B75ECC7A71F4C7AE9112DC /* PieceDefinitions.swift */; };
@@ -57,8 +59,9 @@
 		8191F237D5EADE60FD9E2953 /* GameScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameScene.swift; sourceTree = "<group>"; };
 		8E080DFA663D3EDCC037B192 /* GridPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridPosition.swift; sourceTree = "<group>"; };
 		8E0F760C81FBEDB8604C14BA /* GameKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameKit.framework; path = System/Library/Frameworks/GameKit.framework; sourceTree = SDKROOT; };
+		9004A7DF9DBCD18E17E1D3C6 /* AdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdManager.swift; sourceTree = "<group>"; };
 		A900B4DADFC0A78696343DDB /* Block.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Block.swift; sourceTree = "<group>"; };
-		AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stack & Blast.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StackAndBlast.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B18E895F6DF338D02839E2BF /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
 		C177F1794EA045DC89D21328 /* BlastEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlastEvent.swift; sourceTree = "<group>"; };
 		CDD5466C591FCD437983192F /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
@@ -79,6 +82,7 @@
 				D93785190AFCFB7966E1F688 /* StoreKit.framework in Frameworks */,
 				B51538869B8370A2CD456713 /* AVFoundation.framework in Frameworks */,
 				D9A8271CB3389FF7A684073D /* CoreHaptics.framework in Frameworks */,
+				9A1A3ECD7E2C1F3FBC5C8CCA /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,6 +187,7 @@
 		96740C7DEC2F50E8DC1158CF /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				9004A7DF9DBCD18E17E1D3C6 /* AdManager.swift */,
 				287551890F36D3D3784D148B /* AudioManager.swift */,
 				60E40AA8213878C44047FB5A /* HapticManager.swift */,
 				80C54DC31EC0EDB650B8FEA5 /* ScoreManager.swift */,
@@ -193,7 +198,7 @@
 		B7FBF46E9D7989B34A0F81D6 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */,
+				AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -249,9 +254,10 @@
 			);
 			name = StackAndBlast;
 			packageProductDependencies = (
+				5A547CDAF2AB744276325F8D /* GoogleMobileAds */,
 			);
 			productName = StackAndBlast;
-			productReference = AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */;
+			productReference = AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -273,6 +279,10 @@
 			);
 			mainGroup = 304A89242F535AA6167DF549;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D695B2502DF232032C695092 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+			);
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -297,6 +307,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D83FE6EA0F54360640D2E01E /* AdManager.swift in Sources */,
 				56198142E3F158F14D38E7A8 /* AudioManager.swift in Sources */,
 				42BFC259306B7ECAE2FA0020 /* BlastEvent.swift in Sources */,
 				9ECEACB349255265707355EC /* BlastResolver.swift in Sources */,
@@ -396,7 +407,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Stack & Blast";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -426,7 +436,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Stack & Blast";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -528,6 +537,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D695B2502DF232032C695092 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A547CDAF2AB744276325F8D /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D695B2502DF232032C695092 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B47A4518A12FCD6F3B9B67FD /* Project object */;
 }

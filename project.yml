@@ -6,6 +6,11 @@ options:
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
 
+packages:
+  GoogleMobileAds:
+    url: https://github.com/googleads/swift-package-manager-google-mobile-ads
+    from: "11.2.0"
+
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -47,3 +52,5 @@ targets:
       - sdk: StoreKit.framework
       - sdk: AVFoundation.framework
       - sdk: CoreHaptics.framework
+      - package: GoogleMobileAds
+        product: GoogleMobileAds

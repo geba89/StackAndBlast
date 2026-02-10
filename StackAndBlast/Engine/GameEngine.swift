@@ -15,6 +15,15 @@ struct PlacementResult {
     static let failed = PlacementResult(success: false, blastEvents: [], preBlastGrid: nil, gameOver: false)
 }
 
+/// Result of using the bomb continue mechanic.
+struct BombResult {
+    let success: Bool
+    let clearedPositions: [GridPosition]
+    let clearedBlockIDs: [UUID]
+    /// Whether the game can resume (at least one piece can be placed after clearing).
+    let gameResumed: Bool
+}
+
 /// Core game logic: owns the grid state, handles placement, scoring, and blast resolution.
 /// This is the "single source of truth" for the game — views observe it via GameViewModel.
 @Observable
@@ -46,6 +55,9 @@ final class GameEngine {
     /// Current game state.
     private(set) var state: GameState = .menu
 
+    /// Whether the bomb continue has been used this game (max 1 per game).
+    private(set) var hasContinued: Bool = false
+
     // MARK: - Dependencies
 
     private let pieceGenerator = PieceGenerator()
@@ -63,6 +75,7 @@ final class GameEngine {
         maxCombo = 0
         totalBlasts = 0
         piecesPlaced = 0
+        hasContinued = false
         tray = pieceGenerator.generateTray()
         state = .playing
     }
@@ -134,6 +147,53 @@ final class GameEngine {
     /// Force end the game (e.g. timer ran out in Blast Rush mode).
     func endGame() {
         state = .gameOver
+    }
+
+    /// Use the bomb to clear a 6×6 area centered on `center`. Limited to 1 per game.
+    /// Does not trigger blast cascades — simply removes blocks in the area.
+    func useBomb(at center: GridPosition) -> BombResult {
+        guard state == .gameOver, !hasContinued else {
+            return BombResult(success: false, clearedPositions: [], clearedBlockIDs: [], gameResumed: false)
+        }
+
+        // 6×6 area: center ± 2 rows, center ± 2 cols (shifted +1 to make even size)
+        let minRow = max(center.row - 2, 0)
+        let maxRow = min(center.row + 3, GameConstants.gridSize - 1)
+        let minCol = max(center.col - 2, 0)
+        let maxCol = min(center.col + 3, GameConstants.gridSize - 1)
+
+        var clearedPositions: [GridPosition] = []
+        var clearedBlockIDs: [UUID] = []
+
+        for row in minRow...maxRow {
+            for col in minCol...maxCol {
+                if let block = grid[row][col] {
+                    clearedPositions.append(GridPosition(row: row, col: col))
+                    clearedBlockIDs.append(block.id)
+                    grid[row][col] = nil
+                }
+            }
+        }
+
+        hasContinued = true
+
+        // Refill tray if empty
+        if tray.isEmpty {
+            tray = pieceGenerator.generateTray()
+        }
+
+        // Check if game can resume
+        let canResume = canPlaceAnyPiece()
+        if canResume {
+            state = .playing
+        }
+
+        return BombResult(
+            success: true,
+            clearedPositions: clearedPositions,
+            clearedBlockIDs: clearedBlockIDs,
+            gameResumed: canResume
+        )
     }
 
     // MARK: - Query
