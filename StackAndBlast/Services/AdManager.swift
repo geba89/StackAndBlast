@@ -10,8 +10,8 @@ final class AdManager: NSObject {
     /// Whether a rewarded ad is loaded and ready to show.
     private(set) var isRewardedAdReady: Bool = false
 
-    /// Test ad unit ID — replace with real ID before App Store release.
-    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
+    /// Rewarded ad unit ID for the bomb continue mechanic.
+    private let rewardedAdUnitID = "ca-app-pub-2741592186352961/8805323485"
 
     private var rewardedAd: GADRewardedAd?
     private var rewardCompletion: ((Bool) -> Void)?

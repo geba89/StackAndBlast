@@ -52,8 +52,8 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
         UIStatusBarStyle: UIStatusBarStyleLightContent
-        # Google AdMob test application ID — replace with real ID before release
-        GADApplicationIdentifier: "ca-app-pub-3940256099942544~1458002511"
+        # Google AdMob application ID
+        GADApplicationIdentifier: "ca-app-pub-2741592186352961~7671478866"
     dependencies:
       - sdk: SpriteKit.framework
       - sdk: GameKit.framework
