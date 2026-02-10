@@ -452,11 +452,166 @@ final class GameScene: SKScene {
         }
     }
 
+    // MARK: - Bomb State
+
+    /// Preview nodes for bomb placement (6×6 red/orange area).
+    private var bombPreviewNodes: [SKShapeNode] = []
+
+    /// Animate the bomb explosion and call completion when done.
+    func animateBombExplosion(result: BombResult, completion: @escaping () -> Void) {
+        // Clear bomb preview
+        clearBombPreview()
+
+        let idsToRemove = Set(result.clearedBlockIDs)
+        var nodesToExplode: [SKShapeNode] = []
+        for (id, node) in blockNodes where idsToRemove.contains(id) {
+            nodesToExplode.append(node)
+        }
+
+        // Flash white → red → fade out
+        let explodeAction = SKAction.sequence([
+            SKAction.colorize(with: .white, colorBlendFactor: 1.0, duration: 0.08),
+            SKAction.colorize(with: .red, colorBlendFactor: 1.0, duration: 0.08),
+            SKAction.group([
+                SKAction.fadeOut(withDuration: 0.2),
+                SKAction.scale(to: 0.3, duration: 0.2)
+            ])
+        ])
+
+        let animGroup = DispatchGroup()
+        for node in nodesToExplode {
+            animGroup.enter()
+            node.run(explodeAction) {
+                node.removeFromParent()
+                animGroup.leave()
+            }
+        }
+
+        // Remove from tracking
+        for id in idsToRemove {
+            blockNodes.removeValue(forKey: id)
+        }
+
+        // Heavy screen shake
+        runScreenShake(intensity: 12)
+
+        // Fire-colored particle burst at each position
+        for pos in result.clearedPositions {
+            let scenePos = scenePosition(for: pos)
+            for _ in 0..<10 {
+                let particle = SKShapeNode(rectOf: CGSize(width: CGFloat.random(in: 3...6),
+                                                          height: CGFloat.random(in: 3...6)),
+                                           cornerRadius: 1)
+                // Fire colors: orange, red, yellow mix
+                let fireColors: [UIColor] = [
+                    UIColor(red: 1.0, green: 0.4, blue: 0.1, alpha: 1),
+                    UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1),
+                    UIColor.red,
+                    UIColor.yellow
+                ]
+                particle.fillColor = fireColors.randomElement()!
+                particle.strokeColor = .clear
+                particle.position = scenePos
+                particle.zPosition = 6
+                addChild(particle)
+
+                let angle = CGFloat.random(in: 0...(2 * .pi))
+                let distance = CGFloat.random(in: 30...100)
+                let dx = cos(angle) * distance
+                let dy = sin(angle) * distance
+                let duration = CGFloat.random(in: 0.3...0.5)
+
+                let move = SKAction.moveBy(x: dx, y: dy, duration: duration)
+                move.timingMode = .easeOut
+                particle.run(SKAction.group([
+                    move,
+                    SKAction.fadeOut(withDuration: duration),
+                    SKAction.scale(to: 0.1, duration: duration)
+                ])) {
+                    particle.removeFromParent()
+                }
+            }
+        }
+
+        // Large expanding shockwave circle from center of bomb area
+        if !result.clearedPositions.isEmpty {
+            let avgRow = CGFloat(result.clearedPositions.map(\.row).reduce(0, +)) / CGFloat(result.clearedPositions.count)
+            let avgCol = CGFloat(result.clearedPositions.map(\.col).reduce(0, +)) / CGFloat(result.clearedPositions.count)
+            let center = CGPoint(
+                x: gridOrigin.x + avgCol * cellSize + cellSize / 2,
+                y: gridOrigin.y - avgRow * cellSize - cellSize / 2
+            )
+            let ring = SKShapeNode(circleOfRadius: cellSize)
+            ring.strokeColor = UIColor.orange.withAlphaComponent(0.7)
+            ring.fillColor = UIColor.orange.withAlphaComponent(0.1)
+            ring.lineWidth = 3.0
+            ring.position = center
+            ring.zPosition = 7
+            addChild(ring)
+            ring.run(SKAction.group([
+                SKAction.scale(to: 8, duration: 0.5),
+                SKAction.fadeOut(withDuration: 0.5)
+            ])) {
+                ring.removeFromParent()
+            }
+        }
+
+        // Audio + haptic
+        AudioManager.shared.playBlast()
+        HapticManager.shared.playBlast()
+
+        animGroup.notify(queue: .main) {
+            completion()
+        }
+    }
+
+    /// Show/update the 6×6 bomb preview at a grid position.
+    private func updateBombPreview(at center: GridPosition) {
+        clearBombPreview()
+
+        let minRow = max(center.row - 2, 0)
+        let maxRow = min(center.row + 3, GameConstants.gridSize - 1)
+        let minCol = max(center.col - 2, 0)
+        let maxCol = min(center.col + 3, GameConstants.gridSize - 1)
+
+        for row in minRow...maxRow {
+            for col in minCol...maxCol {
+                let pos = GridPosition(row: row, col: col)
+                let inset: CGFloat = 1.0
+                let previewSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
+                let node = SKShapeNode(rectOf: previewSize, cornerRadius: blockCornerRadius)
+                node.fillColor = UIColor.red.withAlphaComponent(0.2)
+                node.strokeColor = UIColor.orange.withAlphaComponent(0.5)
+                node.lineWidth = 1.0
+                node.position = scenePosition(for: pos)
+                node.zPosition = 2
+                addChild(node)
+                bombPreviewNodes.append(node)
+            }
+        }
+    }
+
+    /// Remove all bomb preview nodes.
+    private func clearBombPreview() {
+        for node in bombPreviewNodes {
+            node.removeFromParent()
+        }
+        bombPreviewNodes.removeAll()
+    }
+
     // MARK: - Touch Handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard !isAnimating, let touch = touches.first else { return }
         let location = touch.location(in: self)
+
+        // Bomb mode: tap grid to place bomb
+        if viewModel?.isBombMode == true {
+            if let gridPos = gridPosition(for: location) {
+                updateBombPreview(at: gridPos)
+            }
+            return
+        }
 
         // Hit-test against tray pieces
         for (pieceID, trayNode) in trayPieceNodes {
@@ -503,11 +658,19 @@ final class GameScene: SKScene {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first,
-              let dragNode = draggedPieceNode,
-              let piece = draggedPiece else { return }
-
+        guard let touch = touches.first else { return }
         let location = touch.location(in: self)
+
+        // Bomb mode: update preview as finger moves
+        if viewModel?.isBombMode == true {
+            if let gridPos = gridPosition(for: location) {
+                updateBombPreview(at: gridPos)
+            }
+            return
+        }
+
+        guard let dragNode = draggedPieceNode,
+              let piece = draggedPiece else { return }
 
         // Move the drag node above the finger
         dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
@@ -528,6 +691,18 @@ final class GameScene: SKScene {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // Bomb mode: place bomb at last touched grid position
+        if viewModel?.isBombMode == true {
+            if let touch = touches.first {
+                let location = touch.location(in: self)
+                if let gridPos = gridPosition(for: location) {
+                    viewModel?.placeBomb(at: gridPos)
+                }
+            }
+            clearBombPreview()
+            return
+        }
+
         guard let piece = draggedPiece else { return }
 
         if let hoverPos = currentHoverPosition, viewModel?.engine.canPlace(piece, at: hoverPos) == true {

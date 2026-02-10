@@ -6,6 +6,9 @@ struct GameOverView: View {
     let maxCombo: Int
     let totalBlasts: Int
     let piecesPlaced: Int
+    let hasContinued: Bool
+    let isAdReady: Bool
+    let onUseBomb: () -> Void
     let onPlayAgain: () -> Void
     let onMainMenu: () -> Void
 
@@ -33,12 +36,44 @@ struct GameOverView: View {
                 // Stats grid
                 HStack(spacing: 24) {
                     StatItem(label: "BLASTS", value: "\(totalBlasts)")
-                    StatItem(label: "BEST COMBO", value: "×\(maxCombo)")
+                    StatItem(label: "BEST COMBO", value: "\(maxCombo > 0 ? "×\(maxCombo)" : "-")")
                     StatItem(label: "PIECES", value: "\(piecesPlaced)")
                 }
 
                 // Action buttons
                 VStack(spacing: 12) {
+                    // USE BOMB — only available once per game when ad is ready
+                    if !hasContinued && isAdReady {
+                        Button(action: onUseBomb) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "flame.fill")
+                                    .font(.title3)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("USE BOMB")
+                                        .font(.system(.headline, design: .rounded))
+                                        .fontWeight(.bold)
+                                    Text("Watch ad to clear 6×6 area")
+                                        .font(.system(.caption2, design: .rounded))
+                                        .opacity(0.8)
+                                }
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1.0, green: 0.4, blue: 0.1),
+                                        Color(red: 0.9, green: 0.2, blue: 0.1)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                        }
+                    }
+
                     Button(action: onPlayAgain) {
                         Text("PLAY AGAIN")
                             .font(.system(.headline, design: .rounded))

@@ -12,13 +12,18 @@ struct ContentView: View {
                 GameView(viewModel: viewModel)
                     .transition(.opacity)
 
-                // Game over overlay
-                if viewModel.engine.state == .gameOver {
+                // Game over overlay (hide during bomb placement mode)
+                if viewModel.engine.state == .gameOver && !viewModel.isBombMode {
                     GameOverView(
                         score: viewModel.engine.score,
                         maxCombo: viewModel.engine.maxCombo,
                         totalBlasts: viewModel.engine.totalBlasts,
                         piecesPlaced: viewModel.engine.piecesPlaced,
+                        hasContinued: viewModel.engine.hasContinued,
+                        isAdReady: AdManager.shared.isRewardedAdReady,
+                        onUseBomb: {
+                            viewModel.watchAdForBomb()
+                        },
                         onPlayAgain: {
                             viewModel.startGame(mode: viewModel.gameMode)
                         },

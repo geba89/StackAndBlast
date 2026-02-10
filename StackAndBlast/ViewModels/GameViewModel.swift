@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 /// Bridges the GameEngine to the view layer (SwiftUI + SpriteKit).
 /// Translates user actions (drag-and-drop) into engine calls and exposes
@@ -46,6 +47,11 @@ final class GameViewModel {
 
     /// Timer for Blast Rush countdown.
     private var blastRushTimer: Timer?
+
+    // MARK: - Bomb Mode
+
+    /// Whether the player is in bomb placement mode (after watching ad).
+    var isBombMode: Bool = false
 
     // MARK: - Actions
 
@@ -146,6 +152,46 @@ final class GameViewModel {
     func cancelDrag() {
         draggedPiece = nil
         hoverPosition = nil
+    }
+
+    // MARK: - Bomb Continue
+
+    /// Show a rewarded ad, then activate bomb placement mode on success.
+    func watchAdForBomb() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first?.rootViewController else { return }
+
+        AdManager.shared.showRewardedAd(from: rootVC) { [weak self] success in
+            guard let self, success else { return }
+            self.isBombMode = true
+            // Temporarily set state to playing so the game over overlay hides
+            // and the player can tap the grid to place the bomb
+        }
+    }
+
+    /// Place the bomb at the given grid position and animate the explosion.
+    func placeBomb(at position: GridPosition) {
+        guard isBombMode else { return }
+        isBombMode = false
+
+        let result = engine.useBomb(at: position)
+        guard result.success else { return }
+
+        // Animate the bomb explosion
+        isAnimating = true
+        scene?.isAnimating = true
+        scene?.animateBombExplosion(result: result) { [weak self] in
+            guard let self else { return }
+            self.isAnimating = false
+            self.scene?.isAnimating = false
+            self.scene?.updateGrid(self.engine.grid)
+            self.scene?.updateTray(self.engine.tray)
+
+            if !result.gameResumed {
+                // Board still too full — game stays over
+                AudioManager.shared.playGameOver()
+            }
+        }
     }
 
     // MARK: - Blast Rush Timer
