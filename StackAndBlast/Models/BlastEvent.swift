@@ -1,5 +1,13 @@
 import Foundation
 
+/// A block that was pushed by the blast shockwave.
+struct PushedBlock {
+    let blockID: UUID
+    let from: GridPosition
+    /// New position after push. Nil means pushed off the grid (destroyed).
+    let to: GridPosition?
+}
+
 /// Describes a single blast event (one color group cleared at one cascade level).
 /// Used by the rendering layer to orchestrate blast animations in sequence.
 struct BlastEvent {
@@ -14,6 +22,9 @@ struct BlastEvent {
 
     /// The cascade level (0 = initial blast, 1 = first cascade, etc.).
     let cascadeLevel: Int
+
+    /// Blocks pushed outward by the blast shockwave.
+    let pushedBlocks: [PushedBlock]
 
     /// Number of cells cleared in this group.
     var groupSize: Int { clearedPositions.count }

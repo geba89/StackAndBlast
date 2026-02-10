@@ -12,8 +12,7 @@ enum GameConstants {
     static let maxCascadeDepth = 10
 
     /// Minimum connected group size to trigger a blast.
-    /// Set to 5 so placing a single 4-cell piece doesn't immediately blast.
-    static let minGroupSize = 5
+    static let minGroupSize = 8
 
     // MARK: - Scoring
 
@@ -25,10 +24,10 @@ enum GameConstants {
 
     /// Bonus points for larger groups — (minimum size, bonus points).
     static let groupBonusThresholds: [(size: Int, bonus: Int)] = [
-        (5, 0),
-        (7, 50),
-        (9, 150),
-        (12, 300)
+        (8, 0),
+        (10, 50),
+        (13, 150),
+        (16, 300)
     ]
 
     // MARK: - Animation durations (seconds)

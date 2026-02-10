@@ -316,10 +316,59 @@ final class GameScene: SKScene {
             // Phase 4: CIRCULAR SHOCKWAVE from group center
             self.spawnShockwaveRing(event: event)
 
-            // Brief settle time then done
-            self.run(SKAction.wait(forDuration: 0.2)) {
+            // Phase 5: PUSH adjacent blocks outward
+            self.animatePushedBlocks(event: event) {
                 completion()
             }
+        }
+    }
+
+    /// Animate blocks being pushed away from the blast.
+    /// Blocks pushed off-grid slide out and fade away.
+    private func animatePushedBlocks(event: BlastEvent, completion: @escaping () -> Void) {
+        guard !event.pushedBlocks.isEmpty else {
+            // No pushed blocks — just settle
+            run(SKAction.wait(forDuration: 0.2)) { completion() }
+            return
+        }
+
+        let pushGroup = DispatchGroup()
+
+        for pushed in event.pushedBlocks {
+            guard let node = blockNodes[pushed.blockID] else { continue }
+
+            pushGroup.enter()
+
+            if let dest = pushed.to {
+                // Block slides to new position
+                let targetPos = scenePosition(for: dest)
+                let move = SKAction.move(to: targetPos, duration: 0.2)
+                move.timingMode = .easeOut
+                node.run(move) { pushGroup.leave() }
+            } else {
+                // Block pushed off-grid — slide outward and fade
+                let fromPos = scenePosition(for: pushed.from)
+                // Continue in the same direction off-screen
+                let dx = node.position.x - (size.width / 2)
+                let dy = node.position.y - (size.height / 2)
+                let norm = max(sqrt(dx * dx + dy * dy), 1)
+                let offscreenX = fromPos.x + (dx / norm) * cellSize * 2
+                let offscreenY = fromPos.y + (dy / norm) * cellSize * 2
+
+                let slideOut = SKAction.move(to: CGPoint(x: offscreenX, y: offscreenY), duration: 0.25)
+                slideOut.timingMode = .easeIn
+                let fade = SKAction.fadeOut(withDuration: 0.25)
+
+                node.run(SKAction.group([slideOut, fade])) {
+                    node.removeFromParent()
+                    pushGroup.leave()
+                }
+                blockNodes.removeValue(forKey: pushed.blockID)
+            }
+        }
+
+        pushGroup.notify(queue: .main) {
+            completion()
         }
     }
 
