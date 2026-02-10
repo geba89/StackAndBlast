@@ -69,7 +69,20 @@ final class GameScene: SKScene {
 
     override func didMove(to view: SKView) {
         backgroundColor = UIColor(red: 0.118, green: 0.153, blue: 0.180, alpha: 1) // #1E272E
+        layoutScene()
+    }
 
+    /// Called by SpriteKit when the scene's size changes (e.g. `.resizeFill` adapting
+    /// to the actual device screen). Recalculates all layout to fit the new dimensions.
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        // Only re-layout if we're already presented (didMove has run)
+        guard scene != nil else { return }
+        layoutScene()
+    }
+
+    /// Shared layout setup — rebuilds grid, blocks, and tray for the current scene size.
+    private func layoutScene() {
         // Cache layout values
         cellSize = calculateCellSize()
         gridOrigin = calculateGridOrigin(cellSize: cellSize)

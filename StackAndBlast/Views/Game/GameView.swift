@@ -7,10 +7,12 @@ struct GameView: View {
 
     /// Persistent SpriteKit scene instance — must NOT be a computed property
     /// or it gets recreated on every SwiftUI re-render, losing all state.
+    /// Uses `.resizeFill` so the scene automatically adapts to the actual view size
+    /// on any device, preventing content from being cropped or going out of bounds.
     @State private var scene: GameScene = {
         let scene = GameScene()
-        scene.size = CGSize(width: 390, height: 844)
-        scene.scaleMode = .aspectFill
+        scene.size = CGSize(width: 390, height: 844) // initial size; resizeFill overrides
+        scene.scaleMode = .resizeFill
         return scene
     }()
 
