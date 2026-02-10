@@ -58,6 +58,10 @@ final class GameScene: SKScene {
     /// The current grid position the dragged piece snaps to.
     private var currentHoverPosition: GridPosition?
 
+    /// Offset from drag node center to cell (0,0) position.
+    /// Computed once per drag to align visual position with grid placement.
+    private var dragOriginOffset: CGPoint = .zero
+
     /// Whether animations are playing (blocks touch input).
     var isAnimating: Bool = false
 
@@ -499,6 +503,19 @@ final class GameScene: SKScene {
                 // Start dragging this piece
                 draggedPiece = piece
 
+                // Compute offset from drag node center to cell (0,0)
+                // so grid snapping aligns with the visual piece position
+                let minCol = piece.cells.map(\.col).min() ?? 0
+                let maxCol = piece.cells.map(\.col).max() ?? 0
+                let minRow = piece.cells.map(\.row).min() ?? 0
+                let maxRow = piece.cells.map(\.row).max() ?? 0
+                let pieceWidth = CGFloat(maxCol - minCol + 1)
+                let pieceHeight = CGFloat(maxRow - minRow + 1)
+                dragOriginOffset = CGPoint(
+                    x: -pieceWidth * cellSize / 2 + cellSize / 2,
+                    y: pieceHeight * cellSize / 2 - cellSize / 2
+                )
+
                 // Create a full-size copy of the piece for dragging
                 let dragNode = createDragNode(for: piece)
                 // Offset above finger so the piece is visible
@@ -528,9 +545,12 @@ final class GameScene: SKScene {
         // Move the drag node above the finger
         dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
 
-        // Determine which grid cell the piece origin snaps to
-        // Use the drag node position (offset above finger) as the reference point
-        let snapPoint = dragNode.position
+        // Determine which grid cell the piece origin (cell 0,0) snaps to
+        // Offset from drag node center to where cell (0,0) visually sits
+        let snapPoint = CGPoint(
+            x: dragNode.position.x + dragOriginOffset.x,
+            y: dragNode.position.y + dragOriginOffset.y
+        )
         let newHoverPosition = gridPosition(for: snapPoint)
 
         if newHoverPosition != currentHoverPosition {
@@ -640,6 +660,7 @@ final class GameScene: SKScene {
         draggedPieceNode = nil
         draggedPiece = nil
         currentHoverPosition = nil
+        dragOriginOffset = .zero
 
         for ghost in ghostNodes {
             ghost.removeFromParent()
