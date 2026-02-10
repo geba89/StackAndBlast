@@ -4,7 +4,7 @@ import Foundation
 struct PlacementResult {
     /// Whether placement was successful.
     let success: Bool
-    /// Blast events in cascade order (empty if no lines cleared).
+    /// Blast events in cascade order (empty if no groups cleared).
     let blastEvents: [BlastEvent]
     /// Grid snapshot BEFORE blasts resolved (for animation diffing). Nil if no blasts.
     let preBlastGrid: [[Block?]]?
@@ -152,7 +152,7 @@ final class GameEngine {
 
     // MARK: - Private
 
-    /// Resolve all blast chains until no more lines are complete.
+    /// Resolve all blast chains until no more color groups qualify.
     /// Returns all blast events in cascade order for animation.
     private func resolveBlasts() -> [BlastEvent] {
         var allEvents: [BlastEvent] = []
@@ -177,24 +177,13 @@ final class GameEngine {
         return allEvents
     }
 
-    /// Calculate score for a blast event using the GDD scoring table.
+    /// Calculate score for a blast event: per-cell base + size bonus, scaled by cascade level.
     private func calculateBlastScore(event: BlastEvent, cascadeLevel: Int) -> Int {
-        let lineCount = event.totalLinesCleared
+        let cellScore = event.groupSize * GameConstants.baseBlastScore
+        let sizeBonus = GameConstants.groupBonusThresholds
+            .last(where: { event.groupSize >= $0.size })?.bonus ?? 0
         let cascadeMultiplier = 1 << cascadeLevel // 1, 2, 4, 8...
-
-        var base: Int
-        switch lineCount {
-        case 1: base = GameConstants.singleLineBlast
-        case 2: base = GameConstants.doubleLineBlast
-        case 3: base = GameConstants.tripleLineBlast
-        default: base = GameConstants.quadPlusLineBlast
-        }
-
-        if event.isCrossBlast {
-            base += GameConstants.crossBlastBonus
-        }
-
-        return base * cascadeMultiplier
+        return (cellScore + sizeBonus) * cascadeMultiplier
     }
 
     /// Check if any piece in the tray can be placed somewhere on the grid.

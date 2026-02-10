@@ -1,30 +1,20 @@
 import Foundation
 
-/// Describes a single blast event (one cascade level).
+/// Describes a single blast event (one color group cleared at one cascade level).
 /// Used by the rendering layer to orchestrate blast animations in sequence.
 struct BlastEvent {
-    /// Indices of cleared rows (0–8).
-    let clearedRows: [Int]
+    /// All grid positions cleared by this group.
+    let clearedPositions: [GridPosition]
 
-    /// Indices of cleared columns (0–8).
-    let clearedColumns: [Int]
+    /// Block UUIDs that were removed (for node lookup in the scene).
+    let clearedBlockIDs: [UUID]
 
-    /// Blocks displaced by the shockwave: block ID → displacement delta (dRow, dCol).
-    let displacements: [UUID: GridPosition]
-
-    /// Pairs of block IDs that swapped positions.
-    let swapPairs: [(UUID, UUID)]
+    /// The color of the group that was cleared (for color-matched particles).
+    let groupColor: BlockColor
 
     /// The cascade level (0 = initial blast, 1 = first cascade, etc.).
     let cascadeLevel: Int
 
-    /// Whether this was a cross-blast (row + column cleared simultaneously).
-    var isCrossBlast: Bool {
-        !clearedRows.isEmpty && !clearedColumns.isEmpty
-    }
-
-    /// Total number of lines cleared in this event.
-    var totalLinesCleared: Int {
-        clearedRows.count + clearedColumns.count
-    }
+    /// Number of cells cleared in this group.
+    var groupSize: Int { clearedPositions.count }
 }
