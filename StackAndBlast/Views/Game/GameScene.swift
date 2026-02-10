@@ -327,11 +327,11 @@ final class GameScene: SKScene {
     /// Blocks pushed off-grid slide out and fade away.
     private func animatePushedBlocks(event: BlastEvent, completion: @escaping () -> Void) {
         guard !event.pushedBlocks.isEmpty else {
-            // No pushed blocks — just settle
-            run(SKAction.wait(forDuration: 0.2)) { completion() }
+            run(SKAction.wait(forDuration: 0.15)) { completion() }
             return
         }
 
+        let duration = GameConstants.pushAnimationDuration
         let pushGroup = DispatchGroup()
 
         for pushed in event.pushedBlocks {
@@ -342,22 +342,27 @@ final class GameScene: SKScene {
             if let dest = pushed.to {
                 // Block slides to new position
                 let targetPos = scenePosition(for: dest)
-                let move = SKAction.move(to: targetPos, duration: 0.2)
+                let move = SKAction.move(to: targetPos, duration: duration)
                 move.timingMode = .easeOut
                 node.run(move) { pushGroup.leave() }
             } else {
-                // Block pushed off-grid — slide outward and fade
-                let fromPos = scenePosition(for: pushed.from)
-                // Continue in the same direction off-screen
-                let dx = node.position.x - (size.width / 2)
-                let dy = node.position.y - (size.height / 2)
-                let norm = max(sqrt(dx * dx + dy * dy), 1)
-                let offscreenX = fromPos.x + (dx / norm) * cellSize * 2
-                let offscreenY = fromPos.y + (dy / norm) * cellSize * 2
+                // Block pushed off-grid — slide in push direction and fade
+                // Compute push direction from from-position
+                let fromScene = scenePosition(for: pushed.from)
+                // Infer direction: the block was at 'from' and would go 1 cell further
+                // Use the direction from group center to this block
+                let avgRow = CGFloat(event.clearedPositions.map(\.row).reduce(0, +)) / CGFloat(event.groupSize)
+                let avgCol = CGFloat(event.clearedPositions.map(\.col).reduce(0, +)) / CGFloat(event.groupSize)
+                let dxDir = fromScene.x - (gridOrigin.x + avgCol * cellSize + cellSize / 2)
+                let dyDir = fromScene.y - (gridOrigin.y - avgRow * cellSize - cellSize / 2)
+                let mag = max(sqrt(dxDir * dxDir + dyDir * dyDir), 1)
 
-                let slideOut = SKAction.move(to: CGPoint(x: offscreenX, y: offscreenY), duration: 0.25)
+                let offscreenX = fromScene.x + (dxDir / mag) * cellSize * 3
+                let offscreenY = fromScene.y + (dyDir / mag) * cellSize * 3
+
+                let slideOut = SKAction.move(to: CGPoint(x: offscreenX, y: offscreenY), duration: 0.3)
                 slideOut.timingMode = .easeIn
-                let fade = SKAction.fadeOut(withDuration: 0.25)
+                let fade = SKAction.fadeOut(withDuration: 0.3)
 
                 node.run(SKAction.group([slideOut, fade])) {
                     node.removeFromParent()

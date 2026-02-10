@@ -198,6 +198,12 @@ final class GameEngine {
 
     // MARK: - Query
 
+    /// Current minimum group size based on score progression (5 → 12).
+    var currentMinGroupSize: Int {
+        let increases = score / GameConstants.groupSizeIncreaseInterval
+        return min(GameConstants.initialMinGroupSize + increases, GameConstants.maxMinGroupSize)
+    }
+
     /// Check if a piece can be placed at a given origin.
     func canPlace(_ piece: Piece, at origin: GridPosition) -> Bool {
         let positions = piece.absolutePositions(at: origin)
@@ -218,8 +224,10 @@ final class GameEngine {
         var allEvents: [BlastEvent] = []
         var cascadeLevel = 0
 
+        let minGroupSize = currentMinGroupSize
+
         while cascadeLevel < GameConstants.maxCascadeDepth {
-            let events = blastResolver.resolve(grid: &grid, cascadeLevel: cascadeLevel)
+            let events = blastResolver.resolve(grid: &grid, cascadeLevel: cascadeLevel, minGroupSize: minGroupSize)
             if events.isEmpty { break }
 
             // Score the blasts

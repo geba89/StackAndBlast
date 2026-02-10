@@ -11,8 +11,16 @@ enum GameConstants {
     /// Maximum cascade depth to prevent infinite loops.
     static let maxCascadeDepth = 10
 
-    /// Minimum connected group size to trigger a blast.
-    static let minGroupSize = 8
+    // MARK: - Blast Threshold (progressive)
+
+    /// Starting minimum group size to trigger a blast.
+    static let initialMinGroupSize = 5
+
+    /// Maximum minimum group size (cap).
+    static let maxMinGroupSize = 12
+
+    /// Score interval at which the minimum group size increases by 1.
+    static let groupSizeIncreaseInterval = 500
 
     // MARK: - Scoring
 
@@ -24,10 +32,10 @@ enum GameConstants {
 
     /// Bonus points for larger groups — (minimum size, bonus points).
     static let groupBonusThresholds: [(size: Int, bonus: Int)] = [
-        (8, 0),
-        (10, 50),
-        (13, 150),
-        (16, 300)
+        (5, 0),
+        (7, 50),
+        (9, 150),
+        (12, 300)
     ]
 
     // MARK: - Animation durations (seconds)
@@ -35,4 +43,5 @@ enum GameConstants {
     static let placementBounceDuration: Double = 0.15
     static let detonateFlashDuration: Double = 0.1
     static let shockwaveFadeDuration: Double = 0.4
+    static let pushAnimationDuration: Double = 0.2
 }

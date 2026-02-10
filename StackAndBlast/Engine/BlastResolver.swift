@@ -1,7 +1,7 @@
 import Foundation
 
-/// Detects connected color groups (8+ orthogonally adjacent blocks of the same color),
-/// clears them, and pushes adjacent blocks 1 cell away from the blast.
+/// Detects connected color groups, clears them, and pushes ALL adjacent
+/// blocks 1 cell away from the blast with chain-pushing (domino effect).
 final class BlastResolver {
 
     /// Orthogonal neighbor offsets: up, down, left, right.
@@ -12,10 +12,10 @@ final class BlastResolver {
         (row: 0, col: 1)   // right
     ]
 
-    /// Scan the grid for connected color groups of 8+ blocks.
-    /// Clears qualifying groups, pushes adjacent blocks outward, and returns blast events.
+    /// Scan the grid for connected color groups >= minGroupSize.
+    /// Clears qualifying groups, chain-pushes adjacent blocks outward.
     /// Mutates the grid in place. Returns empty array if no groups qualify.
-    func resolve(grid: inout [[Block?]], cascadeLevel: Int) -> [BlastEvent] {
+    func resolve(grid: inout [[Block?]], cascadeLevel: Int, minGroupSize: Int) -> [BlastEvent] {
         var visited = Set<GridPosition>()
         var events: [BlastEvent] = []
 
@@ -25,11 +25,9 @@ final class BlastResolver {
                 guard !visited.contains(pos),
                       let block = grid[row][col] else { continue }
 
-                // Flood-fill to find all connected blocks of the same color
                 let group = floodFill(from: pos, color: block.color, grid: grid, visited: &visited)
 
-                if group.count >= GameConstants.minGroupSize {
-                    // Collect block IDs before clearing
+                if group.count >= minGroupSize {
                     let blockIDs = group.compactMap { grid[$0.row][$0.col]?.id }
                     let clearedSet = Set(group)
 
@@ -38,7 +36,7 @@ final class BlastResolver {
                         grid[p.row][p.col] = nil
                     }
 
-                    // Push adjacent blocks 1 cell away from the blast center
+                    // Chain-push ALL adjacent blocks outward
                     let pushedBlocks = pushAdjacentBlocks(
                         clearedGroup: clearedSet,
                         grid: &grid
@@ -60,8 +58,6 @@ final class BlastResolver {
 
     // MARK: - Flood Fill
 
-    /// BFS flood-fill from a starting position, collecting all orthogonally connected
-    /// blocks of the given color. All visited positions are added to the visited set.
     private func floodFill(
         from start: GridPosition,
         color: BlockColor,
@@ -92,81 +88,132 @@ final class BlastResolver {
         return group
     }
 
-    // MARK: - Push Mechanic
+    // MARK: - Chain Push
 
-    /// Find all blocks adjacent to the cleared group and push them 1 cell
-    /// away from the blast center. Blocks pushed off the grid are destroyed.
+    /// Push ALL blocks adjacent to the cleared group 1 cell away from the
+    /// blast center. If a block is in the way, it gets chain-pushed too
+    /// (domino effect). Blocks pushed off the grid are destroyed.
     private func pushAdjacentBlocks(
         clearedGroup: Set<GridPosition>,
         grid: inout [[Block?]]
     ) -> [PushedBlock] {
-        // Calculate the center of the cleared group
+        // Center of the cleared group
         let centerRow = Double(clearedGroup.map(\.row).reduce(0, +)) / Double(clearedGroup.count)
         let centerCol = Double(clearedGroup.map(\.col).reduce(0, +)) / Double(clearedGroup.count)
 
-        // Find all occupied cells adjacent to the cleared area
-        var adjacentPositions = Set<GridPosition>()
+        // Find ALL occupied cells adjacent to the cleared area
+        var adjacentPositions: [GridPosition] = []
+        var seen = Set<GridPosition>()
         for pos in clearedGroup {
             for dir in Self.directions {
                 let neighbor = GridPosition(row: pos.row + dir.row, col: pos.col + dir.col)
                 if neighbor.isValid,
                    !clearedGroup.contains(neighbor),
+                   !seen.contains(neighbor),
                    grid[neighbor.row][neighbor.col] != nil {
-                    adjacentPositions.insert(neighbor)
+                    adjacentPositions.append(neighbor)
+                    seen.insert(neighbor)
                 }
             }
         }
 
-        // Calculate push direction for each adjacent block and apply
-        var pushedBlocks: [PushedBlock] = []
-        // Process pushes: first collect all moves, then apply to avoid conflicts
-        var moves: [(from: GridPosition, to: GridPosition?, block: Block)] = []
+        // Sort by distance from center (farthest first) to avoid conflicts
+        // when applying chain pushes
+        adjacentPositions.sort { a, b in
+            let distA = abs(Double(a.row) - centerRow) + abs(Double(a.col) - centerCol)
+            let distB = abs(Double(b.row) - centerRow) + abs(Double(b.col) - centerCol)
+            return distA > distB
+        }
+
+        var allPushed: [PushedBlock] = []
 
         for pos in adjacentPositions {
-            guard let block = grid[pos.row][pos.col] else { continue }
+            // Skip if this block was already moved by a previous chain push
+            guard grid[pos.row][pos.col] != nil else { continue }
 
-            // Direction away from blast center (snap to cardinal)
+            // Calculate push direction: away from blast center
             let dRow = Double(pos.row) - centerRow
             let dCol = Double(pos.col) - centerCol
 
             let pushDir: (row: Int, col: Int)
             if abs(dRow) >= abs(dCol) {
-                // Vertical push dominates
                 pushDir = (row: dRow >= 0 ? 1 : -1, col: 0)
             } else {
-                // Horizontal push dominates
                 pushDir = (row: 0, col: dCol >= 0 ? 1 : -1)
             }
 
-            let newPos = GridPosition(row: pos.row + pushDir.row, col: pos.col + pushDir.col)
-
-            if !newPos.isValid {
-                // Pushed off the grid — block is destroyed
-                moves.append((from: pos, to: nil, block: block))
-            } else if grid[newPos.row][newPos.col] == nil && !clearedGroup.contains(newPos) {
-                // Destination is empty — move the block
-                moves.append((from: pos, to: newPos, block: block))
-            }
-            // If destination is occupied, block stays in place (no push)
+            // Chain-push: trace along the push direction, collecting all
+            // consecutive blocks that need to move
+            let chainResult = resolveChainPush(
+                startingAt: pos,
+                direction: pushDir,
+                grid: &grid
+            )
+            allPushed.append(contentsOf: chainResult)
         }
 
-        // Apply all moves to the grid
-        for move in moves {
-            grid[move.from.row][move.from.col] = nil
+        return allPushed
+    }
 
-            if let dest = move.to {
-                var movedBlock = move.block
-                movedBlock.position = dest
-                grid[dest.row][dest.col] = movedBlock
-            }
+    /// Resolve a chain push starting from `start` in `direction`.
+    /// All consecutive blocks along the line shift 1 cell.
+    /// The last block either lands in an empty cell or falls off the grid.
+    private func resolveChainPush(
+        startingAt start: GridPosition,
+        direction dir: (row: Int, col: Int),
+        grid: inout [[Block?]]
+    ) -> [PushedBlock] {
+        // Collect the chain of consecutive occupied cells in the push direction
+        var chain: [GridPosition] = []
+        var current = start
 
-            pushedBlocks.append(PushedBlock(
-                blockID: move.block.id,
-                from: move.from,
-                to: move.to
-            ))
+        while current.isValid, grid[current.row][current.col] != nil {
+            chain.append(current)
+            current = GridPosition(row: current.row + dir.row, col: current.col + dir.col)
         }
 
-        return pushedBlocks
+        guard !chain.isEmpty else { return [] }
+
+        var results: [PushedBlock] = []
+
+        // Process chain from the END to avoid overwriting
+        // `current` is now the first empty cell (or off-grid) after the chain
+        let lastDest = GridPosition(row: chain.last!.row + dir.row, col: chain.last!.col + dir.col)
+
+        if !lastDest.isValid {
+            // Last block in chain falls off the grid — destroyed
+            let lastPos = chain.last!
+            let lastBlock = grid[lastPos.row][lastPos.col]!
+            results.append(PushedBlock(blockID: lastBlock.id, from: lastPos, to: nil))
+            grid[lastPos.row][lastPos.col] = nil
+        }
+
+        // Shift all blocks in the chain 1 cell in the push direction
+        // (process from end to start to avoid overwrites)
+        for i in stride(from: chain.count - 1, through: 0, by: -1) {
+            let fromPos = chain[i]
+            guard let block = grid[fromPos.row][fromPos.col] else { continue }
+
+            let toPos = GridPosition(row: fromPos.row + dir.row, col: fromPos.col + dir.col)
+
+            if toPos.isValid {
+                // Move block to new position
+                var movedBlock = block
+                movedBlock.position = toPos
+                grid[toPos.row][toPos.col] = movedBlock
+                grid[fromPos.row][fromPos.col] = nil
+                results.append(PushedBlock(blockID: block.id, from: fromPos, to: toPos))
+            } else {
+                // Already handled the off-grid case for the last block above;
+                // for any other block pushed off-grid (shouldn't happen with
+                // single-cell pushes, but just in case):
+                grid[fromPos.row][fromPos.col] = nil
+                if !results.contains(where: { $0.blockID == block.id }) {
+                    results.append(PushedBlock(blockID: block.id, from: fromPos, to: nil))
+                }
+            }
+        }
+
+        return results
     }
 }

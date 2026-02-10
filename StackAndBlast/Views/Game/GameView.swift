@@ -37,6 +37,20 @@ struct GameView: View {
                             .animation(.spring(duration: 0.3), value: viewModel.engine.score)
                     }
 
+                    // Current blast threshold indicator
+                    VStack(spacing: 2) {
+                        Text("GOAL")
+                            .font(.system(.caption2, design: .rounded))
+                            .fontWeight(.medium)
+                            .foregroundStyle(.gray)
+                        Text("\(viewModel.engine.currentMinGroupSize)")
+                            .font(.system(.title3, design: .rounded))
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color(red: 1.0, green: 0.6, blue: 0.2))
+                            .contentTransition(.numericText())
+                            .animation(.spring(duration: 0.3), value: viewModel.engine.currentMinGroupSize)
+                    }
+
                     Spacer()
 
                     // Combo counter — visible during blast cascades
