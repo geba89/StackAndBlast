@@ -20,7 +20,6 @@ struct ContentView: View {
                         totalBlasts: viewModel.engine.totalBlasts,
                         piecesPlaced: viewModel.engine.piecesPlaced,
                         hasContinued: viewModel.engine.hasContinued,
-                        isAdReady: AdManager.shared.isRewardedAdReady,
                         onUseBomb: {
                             viewModel.watchAdForBomb()
                         },

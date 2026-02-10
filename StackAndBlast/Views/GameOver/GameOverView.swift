@@ -7,7 +7,6 @@ struct GameOverView: View {
     let totalBlasts: Int
     let piecesPlaced: Int
     let hasContinued: Bool
-    let isAdReady: Bool
     let onUseBomb: () -> Void
     let onPlayAgain: () -> Void
     let onMainMenu: () -> Void
@@ -42,8 +41,8 @@ struct GameOverView: View {
 
                 // Action buttons
                 VStack(spacing: 12) {
-                    // USE BOMB — only available once per game when ad is ready
-                    if !hasContinued && isAdReady {
+                    // USE BOMB — only available once per game
+                    if !hasContinued {
                         Button(action: onUseBomb) {
                             HStack(spacing: 8) {
                                 Image(systemName: "flame.fill")

@@ -157,15 +157,27 @@ final class GameViewModel {
     // MARK: - Bomb Continue
 
     /// Show a rewarded ad, then activate bomb placement mode on success.
+    /// If no ad is loaded yet, tries to load one first.
     func watchAdForBomb() {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first?.rootViewController else { return }
 
-        AdManager.shared.showRewardedAd(from: rootVC) { [weak self] success in
-            guard let self, success else { return }
-            self.isBombMode = true
-            // Temporarily set state to playing so the game over overlay hides
-            // and the player can tap the grid to place the bomb
+        let presentAd = { [weak self] in
+            AdManager.shared.showRewardedAd(from: rootVC) { [weak self] success in
+                guard let self, success else { return }
+                self.isBombMode = true
+            }
+        }
+
+        if AdManager.shared.isRewardedAdReady {
+            presentAd()
+        } else {
+            // Ad not loaded yet — try loading, then present when ready
+            AdManager.shared.loadRewardedAd { ready in
+                if ready {
+                    presentAd()
+                }
+            }
         }
     }
 

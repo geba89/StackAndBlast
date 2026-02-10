@@ -29,17 +29,24 @@ final class AdManager: NSObject {
 
     /// Preload the next rewarded ad so it's ready when the player needs it.
     func loadRewardedAd() {
+        loadRewardedAd(completion: nil)
+    }
+
+    /// Load a rewarded ad with an optional completion callback.
+    func loadRewardedAd(completion: ((Bool) -> Void)?) {
         GADRewardedAd.load(withAdUnitID: rewardedAdUnitID, request: GADRequest()) { [weak self] ad, error in
-            guard let self else { return }
+            guard let self else { completion?(false); return }
             if let error {
                 print("[AdManager] Failed to load rewarded ad: \(error.localizedDescription)")
                 self.rewardedAd = nil
                 self.isRewardedAdReady = false
+                completion?(false)
                 return
             }
             self.rewardedAd = ad
             self.rewardedAd?.fullScreenContentDelegate = self
             self.isRewardedAdReady = true
+            completion?(true)
         }
     }
 
