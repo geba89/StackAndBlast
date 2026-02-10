@@ -14,10 +14,10 @@ enum GameConstants {
     // MARK: - Blast Threshold (progressive)
 
     /// Starting minimum group size to trigger a blast.
-    static let initialMinGroupSize = 5
+    static let initialMinGroupSize = 10
 
     /// Maximum minimum group size (cap).
-    static let maxMinGroupSize = 12
+    static let maxMinGroupSize = 14
 
     /// Score interval at which the minimum group size increases by 1.
     static let groupSizeIncreaseInterval = 500
@@ -32,10 +32,10 @@ enum GameConstants {
 
     /// Bonus points for larger groups — (minimum size, bonus points).
     static let groupBonusThresholds: [(size: Int, bonus: Int)] = [
-        (5, 0),
-        (7, 50),
-        (9, 150),
-        (12, 300)
+        (10, 0),
+        (11, 50),
+        (12, 150),
+        (14, 300)
     ]
 
     // MARK: - Animation durations (seconds)
