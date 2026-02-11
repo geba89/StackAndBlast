@@ -48,12 +48,16 @@ final class StatsManager {
 
     // MARK: - Recording
 
-    /// Record end-of-game statistics. Call once per game at game over.
-    func recordGameEnd(score: Int, blasts: Int, piecesPlaced: Int, maxCombo: Int) {
+    /// Record accumulative stats once per game (totals that should not be double-counted).
+    func recordGameTotals(score: Int, blasts: Int, piecesPlaced: Int) {
         totalGamesPlayed += 1
         totalScore += score
         totalBlasts += blasts
         totalPiecesPlaced += piecesPlaced
+    }
+
+    /// Update "best of" records. Safe to call multiple times per game (e.g. after bomb continue).
+    func updateBests(score: Int, maxCombo: Int) {
         if maxCombo > highestCombo { highestCombo = maxCombo }
         if score > highestSingleGameScore { highestSingleGameScore = score }
     }

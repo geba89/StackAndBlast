@@ -43,7 +43,7 @@ final class GameEngine {
     /// Current score.
     private(set) var score: Int = 0
 
-    /// Highest combo reached in the current game.
+    /// Highest combo reached in the current game (total blasts from a single placement).
     private(set) var maxCombo: Int = 0
 
     /// Total number of blasts triggered in the current game.
@@ -132,6 +132,11 @@ final class GameEngine {
 
         // Check for line completions and resolve blasts
         let blastEvents = resolveBlasts()
+
+        // Track combo as total blast events from this single placement
+        if !blastEvents.isEmpty {
+            maxCombo = max(maxCombo, blastEvents.count)
+        }
 
         // Refill tray if empty
         if tray.isEmpty {
@@ -259,7 +264,6 @@ final class GameEngine {
                 let blastScore = calculateBlastScore(event: event, cascadeLevel: cascadeLevel)
                 score += blastScore
                 totalBlasts += 1
-                maxCombo = max(maxCombo, cascadeLevel + 1)
 
                 // Apply any triggered power-up effects and collect their clear events
                 for pu in event.triggeredPowerUps {

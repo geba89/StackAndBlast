@@ -102,9 +102,25 @@ final class GameViewModel {
 
     func quitToMenu() {
         isPaused = false
-        wantsQuitToMenu = true
         blastRushTimer?.invalidate()
         blastRushTimer = nil
+
+        // Record stats for the partial game before quitting
+        if !hasRecordedStats {
+            hasRecordedStats = true
+            StatsManager.shared.recordGameTotals(
+                score: engine.score,
+                blasts: engine.totalBlasts,
+                piecesPlaced: engine.piecesPlaced
+            )
+            StatsManager.shared.updateBests(
+                score: engine.score,
+                maxCombo: engine.maxCombo
+            )
+            ScoreManager.shared.submitScore(engine.score, mode: gameMode)
+        }
+
+        wantsQuitToMenu = true
     }
 
     func beginDrag(piece: Piece) {
@@ -142,12 +158,12 @@ final class GameViewModel {
             // Blast occurred — queue animations
             isAnimating = true
             scene?.isAnimating = true
-            currentCombo = result.blastEvents.map(\.cascadeLevel).max().map { $0 + 1 } ?? 0
+            // Combo = total blast events from this single placement
+            currentCombo = result.blastEvents.count
 
-            // Show combo overlay on the grid for cascade level 2+
-            let maxLevel = (result.blastEvents.map(\.cascadeLevel).max() ?? 0) + 1
-            if maxLevel >= 2 {
-                scene?.showComboOverlay(level: maxLevel)
+            // Show combo overlay when multiple blasts occur from one move
+            if currentCombo >= 2 {
+                scene?.showComboOverlay(level: currentCombo)
             }
 
             scene?.animateBlastSequence(
@@ -176,16 +192,21 @@ final class GameViewModel {
         AudioManager.shared.playGameOver()
         ScoreManager.shared.submitScore(engine.score, mode: gameMode)
 
-        // Record lifetime stats (once per game)
+        // Record accumulative totals once per game (prevent double-counting after bomb)
         if !hasRecordedStats {
-            hasRecordedStats = true
-            StatsManager.shared.recordGameEnd(
+            StatsManager.shared.recordGameTotals(
                 score: engine.score,
                 blasts: engine.totalBlasts,
-                piecesPlaced: engine.piecesPlaced,
-                maxCombo: engine.maxCombo
+                piecesPlaced: engine.piecesPlaced
             )
         }
+
+        // Always update "best of" records so post-bomb improvements are captured
+        StatsManager.shared.updateBests(
+            score: engine.score,
+            maxCombo: engine.maxCombo
+        )
+        hasRecordedStats = true
 
         // Mark daily challenge as completed for today
         if gameMode == .dailyChallenge {
