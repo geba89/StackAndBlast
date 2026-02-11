@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -37,6 +37,16 @@
 		E247F321403DBBC171E44FEA /* GameConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = E655E6759769F9FD4E92B1BC /* GameConstants.swift */; };
 		EEA9F18F232A7244EDFCF1B2 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A785F282A852AD9E764699E /* GameState.swift */; };
 		F77F3895380A167907B62727 /* GameEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35410307CB0485E379F242BC /* GameEngine.swift */; };
+		F2E1D0C9B8A7F6E5D4C3B2A1 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* OnboardingView.swift */; };
+		AA11BB22CC33DD44EE55FF01 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF11 /* SettingsManager.swift */; };
+		AA11BB22CC33DD44EE55FF02 /* StatsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF12 /* StatsManager.swift */; };
+		AA11BB22CC33DD44EE55FF03 /* SkinManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF13 /* SkinManager.swift */; };
+		AA11BB22CC33DD44EE55FF04 /* PowerUpType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF14 /* PowerUpType.swift */; };
+		AA11BB22CC33DD44EE55FF05 /* BlockColor+Accessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF15 /* BlockColor+Accessibility.swift */; };
+		AA11BB22CC33DD44EE55FF06 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF16 /* SettingsView.swift */; };
+		AA11BB22CC33DD44EE55FF07 /* SkinPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF17 /* SkinPickerView.swift */; };
+		AA11BB22CC33DD44EE55FF08 /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF18 /* StatsView.swift */; };
+		AA11BB22CC33DD44EE55FF09 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF19 /* NetworkMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,7 +72,7 @@
 		8E0F760C81FBEDB8604C14BA /* GameKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameKit.framework; path = System/Library/Frameworks/GameKit.framework; sourceTree = SDKROOT; };
 		9004A7DF9DBCD18E17E1D3C6 /* AdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdManager.swift; sourceTree = "<group>"; };
 		A900B4DADFC0A78696343DDB /* Block.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Block.swift; sourceTree = "<group>"; };
-		AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StackAndBlast.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stack & Blast.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B18E895F6DF338D02839E2BF /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
 		C177F1794EA045DC89D21328 /* BlastEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlastEvent.swift; sourceTree = "<group>"; };
 		CDD5466C591FCD437983192F /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
@@ -71,6 +81,16 @@
 		D99EFBCD94DFC012B5E70FBA /* CoreHaptics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreHaptics.framework; path = System/Library/Frameworks/CoreHaptics.framework; sourceTree = SDKROOT; };
 		E655E6759769F9FD4E92B1BC /* GameConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConstants.swift; sourceTree = "<group>"; };
 		F98B45465F8556B9B99E8285 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF11 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF12 /* StatsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsManager.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF13 /* SkinManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkinManager.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF14 /* PowerUpType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerUpType.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF15 /* BlockColor+Accessibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BlockColor+Accessibility.swift"; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF16 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF17 /* SkinPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkinPickerView.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF18 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF19 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +116,9 @@
 				BC87EBF728465A73A5255A48 /* Game */,
 				3ACB886ECD2AD0ECEA1A1F54 /* GameOver */,
 				F882125C0F2C5713FCC3C070 /* Menu */,
+				1A2B3C4D5E6F7A8B9C0D1E2F /* Onboarding */,
+				AA11BB22CC33DD44EE55AA01 /* Settings */,
+				AA11BB22CC33DD44EE55AA02 /* Stats */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -119,6 +142,7 @@
 				8E080DFA663D3EDCC037B192 /* GridPosition.swift */,
 				46844794FCD929AB7F973184 /* Piece.swift */,
 				D2B75ECC7A71F4C7AE9112DC /* PieceDefinitions.swift */,
+				AA11BB22CC33DD44EE55FF14 /* PowerUpType.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -192,7 +216,11 @@
 				9004A7DF9DBCD18E17E1D3C6 /* AdManager.swift */,
 				287551890F36D3D3784D148B /* AudioManager.swift */,
 				60E40AA8213878C44047FB5A /* HapticManager.swift */,
+				AA11BB22CC33DD44EE55FF19 /* NetworkMonitor.swift */,
 				80C54DC31EC0EDB650B8FEA5 /* ScoreManager.swift */,
+				AA11BB22CC33DD44EE55FF11 /* SettingsManager.swift */,
+				AA11BB22CC33DD44EE55FF13 /* SkinManager.swift */,
+				AA11BB22CC33DD44EE55FF12 /* StatsManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -200,7 +228,7 @@
 		B7FBF46E9D7989B34A0F81D6 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */,
+				AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -208,6 +236,7 @@
 		BB3181D54C2DC477C4B96BD4 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				AA11BB22CC33DD44EE55FF15 /* BlockColor+Accessibility.swift */,
 				47575FCA3D5A3FB0FF1CA4FF /* BlockColor+UIColor.swift */,
 				5984C42DCDD80F769923B18F /* Color+Theme.swift */,
 			);
@@ -239,6 +268,31 @@
 			path = Menu;
 			sourceTree = "<group>";
 		};
+		1A2B3C4D5E6F7A8B9C0D1E2F /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		AA11BB22CC33DD44EE55AA01 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				AA11BB22CC33DD44EE55FF16 /* SettingsView.swift */,
+				AA11BB22CC33DD44EE55FF17 /* SkinPickerView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		AA11BB22CC33DD44EE55AA02 /* Stats */ = {
+			isa = PBXGroup;
+			children = (
+				AA11BB22CC33DD44EE55FF18 /* StatsView.swift */,
+			);
+			path = Stats;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -259,7 +313,7 @@
 				5A547CDAF2AB744276325F8D /* GoogleMobileAds */,
 			);
 			productName = StackAndBlast;
-			productReference = AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */;
+			productReference = AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -284,7 +338,6 @@
 			packageReferences = (
 				D695B2502DF232032C695092 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -327,11 +380,21 @@
 				8B8547D7C7087239C602A9A4 /* GridPosition.swift in Sources */,
 				9C11C0EBA703BD31462D105F /* HapticManager.swift in Sources */,
 				752B24006740E5B7B62744A5 /* MenuView.swift in Sources */,
+				AA11BB22CC33DD44EE55FF09 /* NetworkMonitor.swift in Sources */,
 				9BDD592D2DDEF0D0D52F5461 /* Piece.swift in Sources */,
 				DC3E06C4BFBA187AAA962B0F /* PieceDefinitions.swift in Sources */,
 				D1125AC5FC22790363B29439 /* PieceGenerator.swift in Sources */,
 				54BC0DC78619F601FA7549E5 /* ScoreManager.swift in Sources */,
 				BED56BCD6E45F63FB22F2A4C /* StackAndBlastApp.swift in Sources */,
+				F2E1D0C9B8A7F6E5D4C3B2A1 /* OnboardingView.swift in Sources */,
+				AA11BB22CC33DD44EE55FF01 /* SettingsManager.swift in Sources */,
+				AA11BB22CC33DD44EE55FF02 /* StatsManager.swift in Sources */,
+				AA11BB22CC33DD44EE55FF03 /* SkinManager.swift in Sources */,
+				AA11BB22CC33DD44EE55FF04 /* PowerUpType.swift in Sources */,
+				AA11BB22CC33DD44EE55FF05 /* BlockColor+Accessibility.swift in Sources */,
+				AA11BB22CC33DD44EE55FF06 /* SettingsView.swift in Sources */,
+				AA11BB22CC33DD44EE55FF07 /* SkinPickerView.swift in Sources */,
+				AA11BB22CC33DD44EE55FF08 /* StatsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -409,6 +472,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				INFOPLIST_FILE = StackAndBlast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -431,6 +495,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				INFOPLIST_FILE = StackAndBlast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

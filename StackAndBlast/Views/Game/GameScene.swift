@@ -19,6 +19,9 @@ final class GameScene: SKScene {
     /// Cached grid origin in scene coordinates (top-left corner).
     private(set) var gridOrigin: CGPoint = .zero
 
+    /// Grid size the scene was last laid out for — triggers re-layout on change.
+    private var layoutGridSize: Int = 0
+
     // MARK: - Node Layers
 
     /// Background grid checkerboard.
@@ -84,6 +87,7 @@ final class GameScene: SKScene {
     /// Shared layout setup — rebuilds grid, blocks, and tray for the current scene size.
     private func layoutScene() {
         // Cache layout values
+        layoutGridSize = GameConstants.gridSize
         cellSize = calculateCellSize()
         gridOrigin = calculateGridOrigin(cellSize: cellSize)
 
@@ -118,6 +122,11 @@ final class GameScene: SKScene {
     /// Update the visual grid to match the engine's grid state.
     /// Diffs current block nodes against the new grid — adds, removes, or repositions as needed.
     func updateGrid(_ grid: [[Block?]]) {
+        // Re-layout if grid size changed (e.g. settings changed between games)
+        if GameConstants.gridSize != layoutGridSize {
+            layoutScene()
+        }
+
         // Collect all blocks currently in the new grid
         var newBlockIDs = Set<UUID>()
 
@@ -134,8 +143,8 @@ final class GameScene: SKScene {
                         existingNode.position = targetPosition
                     }
                 } else {
-                    // New block — create a node
-                    let node = createBlockNode(color: block.color)
+                    // New block — create a node (with power-up if present)
+                    let node = createBlockNode(color: block.color, powerUp: block.powerUp)
                     node.position = targetPosition
                     blocksNode.addChild(node)
                     blockNodes[block.id] = node
@@ -188,10 +197,23 @@ final class GameScene: SKScene {
                 let inset: CGFloat = 1.0
                 let blockSize = CGSize(width: miniCellSize - inset * 2, height: miniCellSize - inset * 2)
                 let blockNode = SKShapeNode(rectOf: blockSize, cornerRadius: 3)
-                blockNode.fillColor = piece.color.uiColor
-                blockNode.strokeColor = piece.color.uiColorDark
+                blockNode.fillColor = SkinManager.shared.colorForBlock(piece.color)
+                blockNode.strokeColor = SkinManager.shared.darkColorForBlock(piece.color)
                 blockNode.lineWidth = 0.5
                 blockNode.position = CGPoint(x: x, y: y)
+
+                // Colorblind symbol in tray pieces
+                if SettingsManager.shared.isColorblindMode {
+                    let label = SKLabelNode(text: piece.color.colorblindSymbol)
+                    label.fontSize = blockSize.width * 0.5
+                    label.fontName = "HelveticaNeue-Bold"
+                    label.fontColor = .white
+                    label.verticalAlignmentMode = .center
+                    label.horizontalAlignmentMode = .center
+                    label.zPosition = 1
+                    blockNode.addChild(label)
+                }
+
                 container.addChild(blockNode)
             }
 
@@ -206,23 +228,56 @@ final class GameScene: SKScene {
 
     // MARK: - Block Node Factory
 
-    /// Create a rounded-rectangle block node with the GDD visual style.
-    private func createBlockNode(color: BlockColor) -> SKShapeNode {
+    /// Create a rounded-rectangle block node with skinned colors, colorblind symbols, and power-up overlay.
+    private func createBlockNode(color: BlockColor, powerUp: PowerUpType? = nil) -> SKShapeNode {
         let inset: CGFloat = 1.5 // gap between blocks
-        let blockSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
+        let bSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
 
-        let node = SKShapeNode(rectOf: blockSize, cornerRadius: blockCornerRadius)
-        node.fillColor = color.uiColor
-        node.strokeColor = color.uiColorDark
+        let node = SKShapeNode(rectOf: bSize, cornerRadius: blockCornerRadius)
+        // Use skinned colors instead of raw BlockColor
+        node.fillColor = SkinManager.shared.colorForBlock(color)
+        node.strokeColor = SkinManager.shared.darkColorForBlock(color)
         node.lineWidth = 1.0
 
         // Subtle inner highlight (lighter strip at top) for 3D bevel effect
-        let highlightSize = CGSize(width: blockSize.width - 4, height: blockSize.height * 0.3)
+        let highlightSize = CGSize(width: bSize.width - 4, height: bSize.height * 0.3)
         let highlight = SKShapeNode(rectOf: highlightSize, cornerRadius: blockCornerRadius - 1)
         highlight.fillColor = UIColor.white.withAlphaComponent(0.12)
         highlight.strokeColor = .clear
-        highlight.position = CGPoint(x: 0, y: blockSize.height * 0.25)
+        highlight.position = CGPoint(x: 0, y: bSize.height * 0.25)
         node.addChild(highlight)
+
+        // Colorblind symbol overlay
+        if SettingsManager.shared.isColorblindMode {
+            let label = SKLabelNode(text: color.colorblindSymbol)
+            label.fontSize = bSize.width * 0.5
+            label.fontName = "HelveticaNeue-Bold"
+            label.fontColor = .white
+            label.verticalAlignmentMode = .center
+            label.horizontalAlignmentMode = .center
+            label.zPosition = 1
+            label.name = "colorblind_symbol"
+            node.addChild(label)
+        }
+
+        // Power-up icon overlay with pulsing animation
+        if let pu = powerUp {
+            let puLabel = SKLabelNode(text: pu.symbol)
+            puLabel.fontSize = bSize.width * 0.55
+            puLabel.fontColor = .white
+            puLabel.verticalAlignmentMode = .center
+            puLabel.horizontalAlignmentMode = .center
+            puLabel.zPosition = 2
+            puLabel.name = "powerup_icon"
+            node.addChild(puLabel)
+
+            // Pulsing glow effect
+            let pulse = SKAction.sequence([
+                SKAction.scale(to: 1.2, duration: 0.5),
+                SKAction.scale(to: 0.9, duration: 0.5)
+            ])
+            puLabel.run(SKAction.repeatForever(pulse))
+        }
 
         return node
     }
@@ -277,7 +332,13 @@ final class GameScene: SKScene {
     }
 
     /// Animate one blast event: detonate → particles → shockwave ring.
+    /// If the event has a `powerUpSource`, plays a dedicated power-up animation instead.
     private func animateSingleBlast(event: BlastEvent, completion: @escaping () -> Void) {
+        if let powerUpType = event.powerUpSource {
+            animatePowerUpEffect(event: event, type: powerUpType, completion: completion)
+            return
+        }
+
         // Audio: chime as warning before blast
         AudioManager.shared.playLineCompleteChime()
 
@@ -333,6 +394,214 @@ final class GameScene: SKScene {
             self.animatePushedBlocks(event: event) {
                 completion()
             }
+        }
+    }
+
+    // MARK: - Power-Up Effect Animations
+
+    /// Animate a power-up clear event with a dedicated visual effect.
+    private func animatePowerUpEffect(event: BlastEvent, type: PowerUpType, completion: @escaping () -> Void) {
+        guard let origin = event.powerUpOrigin else {
+            completion()
+            return
+        }
+
+        // Phase 1: Flash line/area effect
+        switch type {
+        case .rowBlast:
+            spawnRowFlashLine(row: origin.row)
+        case .columnBlast:
+            spawnColumnFlashLine(col: origin.col)
+        case .colorBomb:
+            spawnColorBombFlash(event: event)
+        }
+
+        // Distinct audio per power-up type
+        switch type {
+        case .rowBlast:    AudioManager.shared.playPowerUpRowBlast()
+        case .columnBlast: AudioManager.shared.playPowerUpColumnBlast()
+        case .colorBomb:   AudioManager.shared.playPowerUpColorBomb()
+        }
+        HapticManager.shared.playBlast()
+        runScreenShake(intensity: max(event.groupSize, 5))
+
+        // Phase 2: After the flash, detonate affected blocks
+        run(SKAction.wait(forDuration: 0.2)) { [weak self] in
+            guard let self else { completion(); return }
+
+            let detonateAction = SKAction.sequence([
+                SKAction.colorize(with: .white, colorBlendFactor: 1.0, duration: 0.08),
+                SKAction.group([
+                    SKAction.fadeOut(withDuration: 0.15),
+                    SKAction.scale(to: 1.3, duration: 0.15)
+                ])
+            ])
+
+            let idsToDetonate = Set(event.clearedBlockIDs)
+            let detonateGroup = DispatchGroup()
+
+            for (id, node) in self.blockNodes where idsToDetonate.contains(id) {
+                detonateGroup.enter()
+                node.run(detonateAction) {
+                    node.removeFromParent()
+                    detonateGroup.leave()
+                }
+                self.blockNodes.removeValue(forKey: id)
+            }
+
+            // Particles at each cleared position
+            self.spawnExplosionParticles(event: event)
+
+            detonateGroup.notify(queue: .main) {
+                completion()
+            }
+        }
+    }
+
+    /// Flash a bright horizontal line across the entire row.
+    private func spawnRowFlashLine(row: Int) {
+        let gridWidth = CGFloat(GameConstants.gridSize) * cellSize
+        let centerY = gridOrigin.y - CGFloat(row) * cellSize - cellSize / 2
+        let centerX = gridOrigin.x + gridWidth / 2
+
+        let line = SKShapeNode(rectOf: CGSize(width: gridWidth + 20, height: cellSize * 0.8), cornerRadius: 4)
+        line.fillColor = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.7)
+        line.strokeColor = UIColor.white.withAlphaComponent(0.9)
+        line.lineWidth = 2.0
+        line.position = CGPoint(x: centerX, y: centerY)
+        line.zPosition = 15
+        line.setScale(0.1)
+        line.alpha = 1.0
+        addChild(line)
+
+        // Expand horizontally then fade
+        let scaleUp = SKAction.scaleX(to: 1.0, duration: 0.15)
+        let scaleYUp = SKAction.scaleY(to: 1.0, duration: 0.08)
+        let hold = SKAction.wait(forDuration: 0.1)
+        let fade = SKAction.fadeOut(withDuration: 0.2)
+        line.run(SKAction.sequence([
+            SKAction.group([scaleUp, scaleYUp]),
+            hold,
+            fade
+        ])) {
+            line.removeFromParent()
+        }
+
+        // Arrow symbol at center
+        let arrow = SKLabelNode(text: "\u{2192}") // →
+        arrow.fontSize = 40
+        arrow.fontColor = .white
+        arrow.position = CGPoint(x: centerX, y: centerY - 15)
+        arrow.zPosition = 16
+        arrow.alpha = 0.0
+        addChild(arrow)
+        arrow.run(SKAction.sequence([
+            SKAction.fadeIn(withDuration: 0.1),
+            SKAction.wait(forDuration: 0.2),
+            SKAction.group([
+                SKAction.fadeOut(withDuration: 0.2),
+                SKAction.scale(to: 2.0, duration: 0.2)
+            ])
+        ])) {
+            arrow.removeFromParent()
+        }
+    }
+
+    /// Flash a bright vertical line down the entire column.
+    private func spawnColumnFlashLine(col: Int) {
+        let gridHeight = CGFloat(GameConstants.gridSize) * cellSize
+        let centerX = gridOrigin.x + CGFloat(col) * cellSize + cellSize / 2
+        let centerY = gridOrigin.y - gridHeight / 2
+
+        let line = SKShapeNode(rectOf: CGSize(width: cellSize * 0.8, height: gridHeight + 20), cornerRadius: 4)
+        line.fillColor = UIColor(red: 0.3, green: 0.85, blue: 1.0, alpha: 0.7)
+        line.strokeColor = UIColor.white.withAlphaComponent(0.9)
+        line.lineWidth = 2.0
+        line.position = CGPoint(x: centerX, y: centerY)
+        line.zPosition = 15
+        line.setScale(0.1)
+        line.alpha = 1.0
+        addChild(line)
+
+        // Expand vertically then fade
+        let scaleYUp = SKAction.scaleY(to: 1.0, duration: 0.15)
+        let scaleXUp = SKAction.scaleX(to: 1.0, duration: 0.08)
+        let hold = SKAction.wait(forDuration: 0.1)
+        let fade = SKAction.fadeOut(withDuration: 0.2)
+        line.run(SKAction.sequence([
+            SKAction.group([scaleYUp, scaleXUp]),
+            hold,
+            fade
+        ])) {
+            line.removeFromParent()
+        }
+
+        // Arrow symbol at center
+        let arrow = SKLabelNode(text: "\u{2193}") // ↓
+        arrow.fontSize = 40
+        arrow.fontColor = .white
+        arrow.position = CGPoint(x: centerX, y: centerY - 15)
+        arrow.zPosition = 16
+        arrow.alpha = 0.0
+        addChild(arrow)
+        arrow.run(SKAction.sequence([
+            SKAction.fadeIn(withDuration: 0.1),
+            SKAction.wait(forDuration: 0.2),
+            SKAction.group([
+                SKAction.fadeOut(withDuration: 0.2),
+                SKAction.scale(to: 2.0, duration: 0.2)
+            ])
+        ])) {
+            arrow.removeFromParent()
+        }
+    }
+
+    /// Flash all blocks targeted by a color bomb with a star burst.
+    private func spawnColorBombFlash(event: BlastEvent) {
+        let groupColor = SkinManager.shared.colorForBlock(event.groupColor)
+
+        for pos in event.clearedPositions {
+            let scenePos = scenePosition(for: pos)
+
+            // Colored glow behind each targeted block
+            let glow = SKShapeNode(circleOfRadius: cellSize * 0.6)
+            glow.fillColor = groupColor.withAlphaComponent(0.5)
+            glow.strokeColor = UIColor.white.withAlphaComponent(0.8)
+            glow.lineWidth = 2.0
+            glow.position = scenePos
+            glow.zPosition = 14
+            glow.setScale(0.3)
+            addChild(glow)
+
+            glow.run(SKAction.sequence([
+                SKAction.scale(to: 1.2, duration: 0.15),
+                SKAction.wait(forDuration: 0.1),
+                SKAction.fadeOut(withDuration: 0.15)
+            ])) {
+                glow.removeFromParent()
+            }
+        }
+
+        // Large star symbol at the grid center
+        let gridCenterX = gridOrigin.x + CGFloat(GameConstants.gridSize) * cellSize / 2
+        let gridCenterY = gridOrigin.y - CGFloat(GameConstants.gridSize) * cellSize / 2
+
+        let star = SKLabelNode(text: "\u{2605}") // ★
+        star.fontSize = 56
+        star.fontColor = groupColor
+        star.position = CGPoint(x: gridCenterX, y: gridCenterY - 20)
+        star.zPosition = 16
+        star.setScale(0.5)
+        addChild(star)
+
+        star.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 1.5, duration: 0.25),
+                SKAction.rotate(byAngle: .pi, duration: 0.25)
+            ]),
+            SKAction.fadeOut(withDuration: 0.2)
+        ])) {
+            star.removeFromParent()
         }
     }
 
@@ -392,7 +661,7 @@ final class GameScene: SKScene {
 
     /// Spawn color-matched particle explosions at each cleared cell.
     private func spawnExplosionParticles(event: BlastEvent) {
-        let baseColor = event.groupColor.uiColor
+        let baseColor = SkinManager.shared.colorForBlock(event.groupColor)
         let isLargeGroup = event.groupSize >= 8
         let particlesPerCell = isLargeGroup ? 8 : 6
 
@@ -502,7 +771,7 @@ final class GameScene: SKScene {
         let ringRadius = cellSize * 0.5
         let ring = SKShapeNode(circleOfRadius: ringRadius)
         // Tint the ring with the group color mixed with white
-        let groupColor = event.groupColor.uiColor
+        let groupColor = SkinManager.shared.colorForBlock(event.groupColor)
         ring.strokeColor = groupColor.withAlphaComponent(0.6)
         ring.fillColor = .clear
         ring.lineWidth = 2.0
@@ -517,6 +786,50 @@ final class GameScene: SKScene {
         ring.run(SKAction.group([expand, fade])) {
             ring.removeFromParent()
         }
+    }
+
+    // MARK: - Combo Overlay
+
+    /// Display a "COMBO ×N!" text at the center of the grid that scales up and fades.
+    func showComboOverlay(level: Int) {
+        let gridCenterX = gridOrigin.x + CGFloat(GameConstants.gridSize) * cellSize / 2
+        let gridCenterY = gridOrigin.y - CGFloat(GameConstants.gridSize) * cellSize / 2
+
+        let label = SKLabelNode(text: "COMBO \u{00D7}\(level)!")
+        label.fontName = "HelveticaNeue-Bold"
+        label.fontSize = 36
+        label.fontColor = level >= 4
+            ? UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1) // gold
+            : level >= 3 ? .red : .orange
+        label.position = CGPoint(x: gridCenterX, y: gridCenterY)
+        label.zPosition = 20
+        label.setScale(0.5)
+        label.alpha = 1.0
+        addChild(label)
+
+        let scaleUp = SKAction.scale(to: 1.5, duration: 0.3)
+        scaleUp.timingMode = .easeOut
+        let hold = SKAction.wait(forDuration: 0.4)
+        let fadeOut = SKAction.fadeOut(withDuration: 0.3)
+        label.run(SKAction.sequence([scaleUp, hold, fadeOut])) {
+            label.removeFromParent()
+        }
+    }
+
+    // MARK: - Refresh All Blocks
+
+    /// Rebuild all block nodes from the current engine grid state.
+    /// Used when settings change mid-game (e.g. colorblind toggle, skin change).
+    func refreshAllBlocks() {
+        guard let vm = viewModel else { return }
+        // Remove all existing block nodes
+        for (_, node) in blockNodes {
+            node.removeFromParent()
+        }
+        blockNodes.removeAll()
+        // Re-create from engine state
+        updateGrid(vm.engine.grid)
+        updateTray(vm.engine.tray)
     }
 
     // MARK: - Bomb State

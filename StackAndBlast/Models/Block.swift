@@ -15,10 +15,13 @@ struct Block: Identifiable, Hashable {
     let id: UUID
     let color: BlockColor
     var position: GridPosition
+    /// Optional power-up attached to this block (triggers on blast).
+    var powerUp: PowerUpType?
 
-    init(color: BlockColor, position: GridPosition, id: UUID = UUID()) {
+    init(color: BlockColor, position: GridPosition, id: UUID = UUID(), powerUp: PowerUpType? = nil) {
         self.id = id
         self.color = color
         self.position = position
+        self.powerUp = powerUp
     }
 }

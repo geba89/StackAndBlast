@@ -53,23 +53,41 @@ final class GameViewModel {
     /// Whether the player is in bomb placement mode (after watching ad).
     var isBombMode: Bool = false
 
+    /// Whether game-over stats have been recorded for this session (prevent double-counting).
+    private var hasRecordedStats = false
+
     // MARK: - Actions
 
     func startGame(mode: GameMode = .classic) {
         gameMode = mode
         isPaused = false
         wantsQuitToMenu = false
+        hasRecordedStats = false
         engine.startNewGame()
         scene?.updateGrid(engine.grid)
         scene?.updateTray(engine.tray)
 
-        // Start Blast Rush timer if applicable
+        // Start timers if applicable
         blastRushTimer?.invalidate()
         blastRushTimer = nil
         if mode == .blastRush {
             timeRemaining = 90
             startBlastRushTimer()
         }
+    }
+
+    /// Start a Daily Challenge game (60s timed, deterministic pieces).
+    func startDailyChallenge() {
+        gameMode = .dailyChallenge
+        isPaused = false
+        wantsQuitToMenu = false
+        hasRecordedStats = false
+        engine.startDailyChallenge()
+        scene?.updateGrid(engine.grid)
+        scene?.updateTray(engine.tray)
+
+        timeRemaining = GameConstants.dailyChallengeDuration
+        startBlastRushTimer() // Reuse the same countdown timer
     }
 
     func togglePause() {
@@ -114,8 +132,7 @@ final class GameViewModel {
         HapticManager.shared.playPlacement()
 
         if result.gameOver && result.blastEvents.isEmpty {
-            AudioManager.shared.playGameOver()
-            ScoreManager.shared.submitScore(engine.score, mode: gameMode)
+            handleGameOver()
         }
 
         if !result.blastEvents.isEmpty, let preBlastGrid = result.preBlastGrid {
@@ -126,6 +143,12 @@ final class GameViewModel {
             isAnimating = true
             scene?.isAnimating = true
             currentCombo = result.blastEvents.map(\.cascadeLevel).max().map { $0 + 1 } ?? 0
+
+            // Show combo overlay on the grid for cascade level 2+
+            let maxLevel = (result.blastEvents.map(\.cascadeLevel).max() ?? 0) + 1
+            if maxLevel >= 2 {
+                scene?.showComboOverlay(level: maxLevel)
+            }
 
             scene?.animateBlastSequence(
                 events: result.blastEvents,
@@ -138,14 +161,37 @@ final class GameViewModel {
                 self.currentCombo = 0
                 self.scene?.updateTray(self.engine.tray)
                 if result.gameOver {
-                    AudioManager.shared.playGameOver()
-                    ScoreManager.shared.submitScore(self.engine.score, mode: self.gameMode)
+                    self.handleGameOver()
                 }
             }
         } else {
             // No blast — just update the grid and tray immediately
             scene?.updateGrid(engine.grid)
             scene?.updateTray(engine.tray)
+        }
+    }
+
+    /// Centralized game-over handling: submit score, record stats, play sound, mark daily as done.
+    private func handleGameOver() {
+        AudioManager.shared.playGameOver()
+        ScoreManager.shared.submitScore(engine.score, mode: gameMode)
+
+        // Record lifetime stats (once per game)
+        if !hasRecordedStats {
+            hasRecordedStats = true
+            StatsManager.shared.recordGameEnd(
+                score: engine.score,
+                blasts: engine.totalBlasts,
+                piecesPlaced: engine.piecesPlaced,
+                maxCombo: engine.maxCombo
+            )
+        }
+
+        // Mark daily challenge as completed for today
+        if gameMode == .dailyChallenge {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            UserDefaults.standard.set(formatter.string(from: Date()), forKey: "lastDailyChallengeDate")
         }
     }
 
@@ -219,8 +265,7 @@ final class GameViewModel {
                 self.blastRushTimer?.invalidate()
                 self.blastRushTimer = nil
                 self.engine.endGame()
-                AudioManager.shared.playGameOver()
-                ScoreManager.shared.submitScore(self.engine.score, mode: .blastRush)
+                self.handleGameOver()
             }
         }
     }

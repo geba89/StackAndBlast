@@ -31,6 +31,14 @@ final class BlastResolver {
                     let blockIDs = group.compactMap { grid[$0.row][$0.col]?.id }
                     let clearedSet = Set(group)
 
+                    // Collect power-ups from blocks about to be cleared
+                    var triggered: [TriggeredPowerUp] = []
+                    for p in group {
+                        if let b = grid[p.row][p.col], let pu = b.powerUp {
+                            triggered.append(TriggeredPowerUp(type: pu, position: p, color: b.color))
+                        }
+                    }
+
                     // Clear the cells
                     for p in group {
                         grid[p.row][p.col] = nil
@@ -47,7 +55,10 @@ final class BlastResolver {
                         clearedBlockIDs: blockIDs,
                         groupColor: block.color,
                         cascadeLevel: cascadeLevel,
-                        pushedBlocks: pushedBlocks
+                        pushedBlocks: pushedBlocks,
+                        triggeredPowerUps: triggered,
+                        powerUpSource: nil,
+                        powerUpOrigin: nil
                     ))
                 }
             }

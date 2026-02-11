@@ -62,8 +62,8 @@ struct GameView: View {
                             .animation(.spring(duration: 0.3, bounce: 0.4), value: viewModel.currentCombo)
                     }
 
-                    // Blast Rush timer
-                    if viewModel.gameMode == .blastRush {
+                    // Countdown timer (Blast Rush and Daily Challenge)
+                    if viewModel.gameMode == .blastRush || viewModel.gameMode == .dailyChallenge {
                         Spacer()
                         BlastRushTimerLabel(timeRemaining: viewModel.timeRemaining)
                     }
@@ -89,6 +89,7 @@ struct GameView: View {
             if viewModel.isPaused {
                 PauseOverlay(
                     onResume: { viewModel.togglePause() },
+                    onSettings: { showSettings = true },
                     onRestart: { viewModel.startGame() },
                     onQuit: { viewModel.quitToMenu() }
                 )
@@ -96,6 +97,11 @@ struct GameView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.isPaused)
+        .sheet(isPresented: $showSettings) {
+            SettingsView(onColorblindChanged: {
+                scene.refreshAllBlocks()
+            })
+        }
         .onAppear {
             scene.viewModel = viewModel
             viewModel.scene = scene
@@ -104,6 +110,8 @@ struct GameView: View {
             scene.updateTray(viewModel.engine.tray)
         }
     }
+
+    @State private var showSettings = false
 }
 
 // MARK: - Combo Label
@@ -159,6 +167,7 @@ private struct BlastRushTimerLabel: View {
 
 private struct PauseOverlay: View {
     let onResume: () -> Void
+    let onSettings: () -> Void
     let onRestart: () -> Void
     let onQuit: () -> Void
 
@@ -175,6 +184,9 @@ private struct PauseOverlay: View {
                 VStack(spacing: 12) {
                     PauseButton(title: "RESUME", color: Color(red: 0.0, green: 0.722, blue: 0.580)) {
                         onResume()
+                    }
+                    PauseButton(title: "SETTINGS", color: Color(red: 0.4, green: 0.4, blue: 0.45)) {
+                        onSettings()
                     }
                     PauseButton(title: "RESTART", color: Color(red: 0.035, green: 0.518, blue: 0.890)) {
                         onRestart()

@@ -19,9 +19,15 @@ final class ScoreManager {
         didSet { defaults.set(blastRushHighScore, forKey: "blastRushHighScore") }
     }
 
+    /// Best score in Daily Challenge mode.
+    private(set) var dailyChallengeHighScore: Int {
+        didSet { defaults.set(dailyChallengeHighScore, forKey: "dailyChallengeHighScore") }
+    }
+
     private init() {
         classicHighScore = defaults.integer(forKey: "classicHighScore")
         blastRushHighScore = defaults.integer(forKey: "blastRushHighScore")
+        dailyChallengeHighScore = defaults.integer(forKey: "dailyChallengeHighScore")
     }
 
     /// Submit a score — updates high score if it's a new record.
@@ -32,7 +38,7 @@ final class ScoreManager {
         case .blastRush:
             if score > blastRushHighScore { blastRushHighScore = score }
         case .dailyChallenge:
-            break // Daily challenge uses separate leaderboard (future)
+            if score > dailyChallengeHighScore { dailyChallengeHighScore = score }
         }
     }
 
@@ -41,7 +47,7 @@ final class ScoreManager {
         switch mode {
         case .classic: return classicHighScore
         case .blastRush: return blastRushHighScore
-        case .dailyChallenge: return 0
+        case .dailyChallenge: return dailyChallengeHighScore
         }
     }
 }

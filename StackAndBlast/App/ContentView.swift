@@ -2,12 +2,20 @@ import SwiftUI
 
 /// Root view that handles navigation between menu and game screens.
 struct ContentView: View {
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var selectedMode: GameMode?
     @State private var viewModel = GameViewModel()
 
     var body: some View {
         ZStack {
-            if selectedMode != nil {
+            if !hasSeenOnboarding {
+                OnboardingView {
+                    withAnimation {
+                        hasSeenOnboarding = true
+                    }
+                }
+                .transition(.opacity)
+            } else if selectedMode != nil {
                 // Active game
                 GameView(viewModel: viewModel)
                     .transition(.opacity)
@@ -44,7 +52,11 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .onChange(of: selectedMode) { _, newMode in
             if let mode = newMode {
-                viewModel.startGame(mode: mode)
+                if mode == .dailyChallenge {
+                    viewModel.startDailyChallenge()
+                } else {
+                    viewModel.startGame(mode: mode)
+                }
             }
         }
         .onChange(of: viewModel.wantsQuitToMenu) { _, wantsQuit in
