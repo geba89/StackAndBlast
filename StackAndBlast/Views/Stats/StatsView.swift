@@ -3,9 +3,12 @@ import SwiftUI
 /// Displays lifetime gameplay statistics in a 2-column grid.
 struct StatsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showAchievements = false
 
     private let stats = StatsManager.shared
     private let scoreManager = ScoreManager.shared
+    private let coinManager = CoinManager.shared
+    private let dcManager = DailyChallengeRewardManager.shared
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -27,6 +30,14 @@ struct StatsView: View {
                             StatCard(title: "Pieces Placed", value: formatNumber(stats.totalPiecesPlaced), icon: "square.grid.3x3.fill")
                             StatCard(title: "Best Combo", value: "\(stats.highestCombo)x", icon: "bolt.fill")
                             StatCard(title: "Best Score", value: formatNumber(stats.highestSingleGameScore), icon: "trophy.fill")
+                            StatCard(title: "Coins Earned", value: formatNumber(coinManager.totalEarned), icon: "bitcoinsign.circle.fill")
+                            StatCard(title: "Coins Spent", value: formatNumber(coinManager.totalSpent), icon: "cart.fill")
+                        }
+
+                        // Daily challenges completed
+                        if dcManager.totalCompleted > 0 {
+                            StatCard(title: "Daily Challenges", value: "\(dcManager.totalCompleted)", icon: "calendar.badge.checkmark")
+                                .frame(maxWidth: .infinity)
                         }
 
                         // High scores by game mode
@@ -44,6 +55,30 @@ struct StatsView: View {
                         }
                         .padding(16)
                         .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+
+                        // Achievements button
+                        Button {
+                            showAchievements = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "trophy.fill")
+                                    .font(.title3)
+                                Text("ACHIEVEMENTS")
+                                    .font(.system(.headline, design: .rounded))
+                                    .fontWeight(.bold)
+                                Spacer()
+                                Text("\(AchievementManager.shared.unlockedIDs.count)/\(AchievementManager.shared.achievements.count)")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.gray)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.gray)
+                            }
+                            .foregroundStyle(.white)
+                            .padding()
+                            .background(Color(red: 0.882, green: 0.439, blue: 0.333), in: RoundedRectangle(cornerRadius: 12))
+                        }
                     }
                     .padding()
                 }
@@ -56,6 +91,9 @@ struct StatsView: View {
                     Button("Done") { dismiss() }
                         .foregroundStyle(.white)
                 }
+            }
+            .fullScreenCover(isPresented: $showAchievements) {
+                AchievementsView()
             }
         }
     }

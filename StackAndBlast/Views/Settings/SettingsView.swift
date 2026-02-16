@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var isColorblindMode = SettingsManager.shared.isColorblindMode
     @State private var selectedGridSize = SettingsManager.shared.gridSize
     @State private var showSkinPicker = false
+    @State private var showStore = false
 
     private let gridSizeOptions = [8, 9, 10, 12]
 
@@ -17,10 +18,7 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color(red: 0.118, green: 0.153, blue: 0.180)
-                    .ignoresSafeArea()
-
+            ScrollView {
                 VStack(spacing: 24) {
                     // Toggle rows
                     VStack(spacing: 0) {
@@ -93,6 +91,36 @@ struct SettingsView: View {
                     }
                     .padding(.horizontal)
 
+                    // Store + Restore Purchases
+                    VStack(spacing: 12) {
+                        Button {
+                            showStore = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "cart.fill")
+                                    .font(.title3)
+                                Text("STORE")
+                                    .font(.system(.headline, design: .rounded))
+                                    .fontWeight(.bold)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                            }
+                            .foregroundStyle(.white)
+                            .padding()
+                            .background(Color(red: 0.0, green: 0.722, blue: 0.580), in: RoundedRectangle(cornerRadius: 12))
+                        }
+
+                        Button {
+                            Task { await StoreManager.shared.restorePurchases() }
+                        } label: {
+                            Text("Restore Purchases")
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundStyle(.gray)
+                        }
+                    }
+                    .padding(.horizontal)
+
                     // Power-up legend
                     VStack(alignment: .leading, spacing: 12) {
                         Text("POWER-UPS")
@@ -143,11 +171,11 @@ struct SettingsView: View {
                     .background(Color.white.opacity(0.05))
                     .cornerRadius(12)
                     .padding(.horizontal)
-
-                    Spacer()
                 }
                 .padding(.top, 20)
+                .padding(.bottom, 32)
             }
+            .background(Color(red: 0.118, green: 0.153, blue: 0.180).ignoresSafeArea())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -157,23 +185,30 @@ struct SettingsView: View {
                         .foregroundStyle(.white)
                 }
             }
-            .sheet(isPresented: $showSkinPicker) {
+            .fullScreenCover(isPresented: $showSkinPicker) {
                 SkinPickerView()
+            }
+            .fullScreenCover(isPresented: $showStore) {
+                StoreView()
             }
             .onChange(of: isSoundEnabled) { _, newValue in
                 SettingsManager.shared.isSoundEnabled = newValue
                 AudioManager.shared.setSoundEnabled(newValue)
+                AnalyticsManager.shared.logSettingChanged(setting: "sound", value: "\(newValue)")
             }
             .onChange(of: isHapticsEnabled) { _, newValue in
                 SettingsManager.shared.isHapticsEnabled = newValue
                 HapticManager.shared.setHapticsEnabled(newValue)
+                AnalyticsManager.shared.logSettingChanged(setting: "haptics", value: "\(newValue)")
             }
             .onChange(of: isColorblindMode) { _, newValue in
                 SettingsManager.shared.isColorblindMode = newValue
                 onColorblindChanged?()
+                AnalyticsManager.shared.logSettingChanged(setting: "colorblind", value: "\(newValue)")
             }
             .onChange(of: selectedGridSize) { _, newValue in
                 SettingsManager.shared.gridSize = newValue
+                AnalyticsManager.shared.logSettingChanged(setting: "grid_size", value: "\(newValue)")
             }
         }
     }

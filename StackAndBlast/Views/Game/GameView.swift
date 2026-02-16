@@ -53,6 +53,17 @@ struct GameView: View {
                             .animation(.spring(duration: 0.3), value: viewModel.engine.currentMinGroupSize)
                     }
 
+                    // Coin balance
+                    HStack(spacing: 3) {
+                        Image(systemName: "bitcoinsign.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.yellow)
+                        Text("\(CoinManager.shared.balance)")
+                            .font(.system(.caption, design: .rounded))
+                            .fontWeight(.bold)
+                            .foregroundStyle(.yellow)
+                    }
+
                     Spacer()
 
                     // Combo counter — visible during blast cascades
@@ -82,6 +93,46 @@ struct GameView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
 
+                // Coin power-up buttons (visible during active play, hidden when paused/game over)
+                if viewModel.engine.state == .playing && !viewModel.isPaused {
+                    HStack(spacing: 10) {
+                        Spacer()
+
+                        // Coin Bomb
+                        CoinPowerUpButton(
+                            icon: "flame.fill",
+                            remaining: GameConstants.maxCoinBombsPerGame - viewModel.coinBombsUsed,
+                            maxUses: GameConstants.maxCoinBombsPerGame,
+                            price: GameConstants.coinBombPrice,
+                            isEnabled: viewModel.canUseCoinBomb,
+                            isActive: viewModel.isCoinBombMode
+                        ) {
+                            if viewModel.isCoinBombMode {
+                                viewModel.isCoinBombMode = false
+                            } else {
+                                viewModel.activateCoinBomb()
+                            }
+                        }
+
+                        // Shuffle (hidden in Daily Challenge)
+                        if viewModel.gameMode != .dailyChallenge {
+                            CoinPowerUpButton(
+                                icon: "shuffle",
+                                remaining: GameConstants.maxShufflesPerGame - viewModel.shufflesUsed,
+                                maxUses: GameConstants.maxShufflesPerGame,
+                                price: GameConstants.coinShufflePrice,
+                                isEnabled: viewModel.canUseShuffle,
+                                isActive: false
+                            ) {
+                                viewModel.useShuffle()
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    .transition(.opacity)
+                }
+
                 Spacer()
             }
 
@@ -97,7 +148,7 @@ struct GameView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.isPaused)
-        .sheet(isPresented: $showSettings) {
+        .fullScreenCover(isPresented: $showSettings) {
             SettingsView(onColorblindChanged: {
                 scene.refreshAllBlocks()
             })
@@ -196,8 +247,53 @@ private struct PauseOverlay: View {
                     }
                 }
             }
+            .frame(maxWidth: 400)
             .padding(32)
         }
+    }
+}
+
+/// Compact button for coin-purchasable power-ups shown during gameplay.
+private struct CoinPowerUpButton: View {
+    let icon: String
+    let remaining: Int
+    let maxUses: Int
+    let price: Int
+    let isEnabled: Bool
+    let isActive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text("\(remaining)/\(maxUses)")
+                    .font(.system(.caption2, design: .rounded))
+                    .fontWeight(.bold)
+                HStack(spacing: 2) {
+                    Image(systemName: "bitcoinsign.circle.fill")
+                        .font(.system(size: 9))
+                    Text("\(price)")
+                        .font(.system(.caption2, design: .rounded))
+                        .fontWeight(.bold)
+                }
+                .foregroundStyle(.yellow)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(isActive ? Color.orange.opacity(0.6) : Color.white.opacity(isEnabled ? 0.15 : 0.05))
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(isActive ? Color.orange : Color.clear, lineWidth: 1.5)
+                    )
+            )
+            .opacity(isEnabled || isActive ? 1.0 : 0.4)
+        }
+        .disabled(!isEnabled && !isActive)
     }
 }
 
@@ -212,7 +308,7 @@ private struct PauseButton: View {
                 .font(.system(.headline, design: .rounded))
                 .fontWeight(.bold)
                 .foregroundStyle(.white)
-                .frame(width: 200)
+                .frame(maxWidth: 280)
                 .padding(.vertical, 14)
                 .background(color, in: RoundedRectangle(cornerRadius: 12))
         }

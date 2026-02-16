@@ -6,10 +6,16 @@ options:
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
 
+fileGroups:
+  - Configuration.storekit
+
 packages:
   GoogleMobileAds:
     url: https://github.com/googleads/swift-package-manager-google-mobile-ads
     from: "11.2.0"
+  firebase-ios-sdk:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: "11.0.0"
 
 settings:
   base:
@@ -46,15 +52,18 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         UIApplicationSupportsIndirectInputEvents: true
         UILaunchScreen: {}
+        UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
         UIStatusBarStyle: UIStatusBarStyleLightContent
+        NSUserTrackingUsageDescription: "This allows us to show you relevant ads and support free gameplay."
         # Google AdMob application ID
         GADApplicationIdentifier: "ca-app-pub-2741592186352961~7671478866"
     dependencies:
+      - sdk: AppTrackingTransparency.framework
       - sdk: SpriteKit.framework
       - sdk: GameKit.framework
       - sdk: StoreKit.framework
@@ -62,3 +71,15 @@ targets:
       - sdk: CoreHaptics.framework
       - package: GoogleMobileAds
         product: GoogleMobileAds
+      - package: firebase-ios-sdk
+        product: FirebaseAnalytics
+
+schemes:
+  StackAndBlast:
+    build:
+      targets:
+        StackAndBlast: all
+    run:
+      config: Debug
+      storeKitConfiguration: Configuration.storekit
+

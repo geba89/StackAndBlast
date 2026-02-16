@@ -1,5 +1,13 @@
 import UIKit
 
+/// Types of animation effects for animated skins.
+enum SkinAnimationType {
+    /// Colors slowly cycle through hue shifts (Holographic).
+    case colorShift
+    /// Subtle brightness pulse / shimmer overlay (Ice).
+    case shimmer
+}
+
 /// Defines a cosmetic skin theme with 6 block colors and an unlock condition.
 struct SkinDefinition {
     let id: String
@@ -12,9 +20,27 @@ struct SkinDefinition {
     let unlockCondition: String
     /// Returns true if the player has met the unlock condition.
     let isUnlocked: () -> Bool
+    /// Coin price to purchase this skin (nil = gameplay unlock only).
+    let coinPrice: Int?
+    /// Animation effect type (nil = static blocks).
+    let animationType: SkinAnimationType?
+
+    init(id: String, name: String,
+         colors: [BlockColor: UIColor], darkColors: [BlockColor: UIColor],
+         unlockCondition: String, isUnlocked: @escaping () -> Bool,
+         coinPrice: Int? = nil, animationType: SkinAnimationType? = nil) {
+        self.id = id
+        self.name = name
+        self.colors = colors
+        self.darkColors = darkColors
+        self.unlockCondition = unlockCondition
+        self.isUnlocked = isUnlocked
+        self.coinPrice = coinPrice
+        self.animationType = animationType
+    }
 }
 
-/// Manages cosmetic skin themes — 6 skins unlocked via gameplay milestones.
+/// Manages cosmetic skin themes — 12 skins unlocked via gameplay milestones, coins, or IAP.
 @Observable
 final class SkinManager {
 
@@ -22,6 +48,8 @@ final class SkinManager {
 
     /// All available skins in display order.
     let skins: [SkinDefinition]
+
+    private let defaults = UserDefaults.standard
 
     private init() {
         skins = SkinManager.buildSkins()
@@ -45,10 +73,24 @@ final class SkinManager {
         activeSkin.darkColors[color] ?? color.uiColorDark
     }
 
+    // MARK: - Coin Purchase
+
+    /// Purchase a skin with coins. Returns true on success.
+    func purchaseSkin(_ skinID: String) -> Bool {
+        guard let skin = skins.first(where: { $0.id == skinID }),
+              let price = skin.coinPrice,
+              CoinManager.shared.spend(price) else { return false }
+
+        defaults.set(true, forKey: "skin_purchased_\(skinID)")
+        AnalyticsManager.shared.logSkinUnlocked(skinID: skinID)
+        return true
+    }
+
     // MARK: - Skin Definitions
 
     private static func buildSkins() -> [SkinDefinition] {
         let stats = StatsManager.shared
+        let defaults = UserDefaults.standard
 
         return [
             // Default — always unlocked
@@ -193,6 +235,160 @@ final class SkinManager {
                 ],
                 unlockCondition: "Score 5,000+ and trigger 500 blasts",
                 isUnlocked: { stats.highestSingleGameScore >= 5000 && stats.totalBlasts >= 500 }
+            ),
+
+            // MARK: - Coin-Purchasable Skins
+
+            // Ocean — calming blues and teals
+            SkinDefinition(
+                id: "ocean",
+                name: "Ocean",
+                colors: [
+                    .coral:  UIColor(red: 0.10, green: 0.70, blue: 0.80, alpha: 1),
+                    .blue:   UIColor(red: 0.00, green: 0.50, blue: 0.85, alpha: 1),
+                    .purple: UIColor(red: 0.30, green: 0.40, blue: 0.75, alpha: 1),
+                    .green:  UIColor(red: 0.20, green: 0.75, blue: 0.70, alpha: 1),
+                    .yellow: UIColor(red: 0.60, green: 0.85, blue: 0.90, alpha: 1),
+                    .pink:   UIColor(red: 0.40, green: 0.60, blue: 0.90, alpha: 1)
+                ],
+                darkColors: [
+                    .coral:  UIColor(red: 0.06, green: 0.50, blue: 0.58, alpha: 1),
+                    .blue:   UIColor(red: 0.00, green: 0.35, blue: 0.60, alpha: 1),
+                    .purple: UIColor(red: 0.20, green: 0.28, blue: 0.53, alpha: 1),
+                    .green:  UIColor(red: 0.14, green: 0.53, blue: 0.50, alpha: 1),
+                    .yellow: UIColor(red: 0.42, green: 0.60, blue: 0.63, alpha: 1),
+                    .pink:   UIColor(red: 0.28, green: 0.42, blue: 0.63, alpha: 1)
+                ],
+                unlockCondition: "Purchase for 200 coins",
+                isUnlocked: { defaults.bool(forKey: "skin_purchased_ocean") },
+                coinPrice: 200
+            ),
+
+            // Sunset — warm oranges, reds, pinks
+            SkinDefinition(
+                id: "sunset",
+                name: "Sunset",
+                colors: [
+                    .coral:  UIColor(red: 0.95, green: 0.35, blue: 0.20, alpha: 1),
+                    .blue:   UIColor(red: 0.80, green: 0.25, blue: 0.40, alpha: 1),
+                    .purple: UIColor(red: 0.65, green: 0.20, blue: 0.55, alpha: 1),
+                    .green:  UIColor(red: 1.00, green: 0.60, blue: 0.20, alpha: 1),
+                    .yellow: UIColor(red: 1.00, green: 0.80, blue: 0.30, alpha: 1),
+                    .pink:   UIColor(red: 0.95, green: 0.40, blue: 0.50, alpha: 1)
+                ],
+                darkColors: [
+                    .coral:  UIColor(red: 0.67, green: 0.25, blue: 0.14, alpha: 1),
+                    .blue:   UIColor(red: 0.56, green: 0.18, blue: 0.28, alpha: 1),
+                    .purple: UIColor(red: 0.46, green: 0.14, blue: 0.39, alpha: 1),
+                    .green:  UIColor(red: 0.70, green: 0.42, blue: 0.14, alpha: 1),
+                    .yellow: UIColor(red: 0.70, green: 0.56, blue: 0.21, alpha: 1),
+                    .pink:   UIColor(red: 0.67, green: 0.28, blue: 0.35, alpha: 1)
+                ],
+                unlockCondition: "Purchase for 200 coins",
+                isUnlocked: { defaults.bool(forKey: "skin_purchased_sunset") },
+                coinPrice: 200
+            ),
+
+            // Forest — greens and earth tones
+            SkinDefinition(
+                id: "forest",
+                name: "Forest",
+                colors: [
+                    .coral:  UIColor(red: 0.55, green: 0.35, blue: 0.17, alpha: 1),
+                    .blue:   UIColor(red: 0.20, green: 0.55, blue: 0.35, alpha: 1),
+                    .purple: UIColor(red: 0.40, green: 0.50, blue: 0.25, alpha: 1),
+                    .green:  UIColor(red: 0.15, green: 0.65, blue: 0.30, alpha: 1),
+                    .yellow: UIColor(red: 0.75, green: 0.70, blue: 0.30, alpha: 1),
+                    .pink:   UIColor(red: 0.60, green: 0.45, blue: 0.30, alpha: 1)
+                ],
+                darkColors: [
+                    .coral:  UIColor(red: 0.39, green: 0.25, blue: 0.12, alpha: 1),
+                    .blue:   UIColor(red: 0.14, green: 0.39, blue: 0.25, alpha: 1),
+                    .purple: UIColor(red: 0.28, green: 0.35, blue: 0.18, alpha: 1),
+                    .green:  UIColor(red: 0.10, green: 0.46, blue: 0.21, alpha: 1),
+                    .yellow: UIColor(red: 0.53, green: 0.49, blue: 0.21, alpha: 1),
+                    .pink:   UIColor(red: 0.42, green: 0.32, blue: 0.21, alpha: 1)
+                ],
+                unlockCondition: "Purchase for 300 coins",
+                isUnlocked: { defaults.bool(forKey: "skin_purchased_forest") },
+                coinPrice: 300
+            ),
+
+            // Candy — bright pinks, magentas, sugary colors
+            SkinDefinition(
+                id: "candy",
+                name: "Candy",
+                colors: [
+                    .coral:  UIColor(red: 1.00, green: 0.30, blue: 0.50, alpha: 1),
+                    .blue:   UIColor(red: 0.50, green: 0.75, blue: 1.00, alpha: 1),
+                    .purple: UIColor(red: 0.80, green: 0.40, blue: 0.90, alpha: 1),
+                    .green:  UIColor(red: 0.55, green: 0.95, blue: 0.55, alpha: 1),
+                    .yellow: UIColor(red: 1.00, green: 0.90, blue: 0.40, alpha: 1),
+                    .pink:   UIColor(red: 1.00, green: 0.50, blue: 0.80, alpha: 1)
+                ],
+                darkColors: [
+                    .coral:  UIColor(red: 0.70, green: 0.21, blue: 0.35, alpha: 1),
+                    .blue:   UIColor(red: 0.35, green: 0.53, blue: 0.70, alpha: 1),
+                    .purple: UIColor(red: 0.56, green: 0.28, blue: 0.63, alpha: 1),
+                    .green:  UIColor(red: 0.39, green: 0.67, blue: 0.39, alpha: 1),
+                    .yellow: UIColor(red: 0.70, green: 0.63, blue: 0.28, alpha: 1),
+                    .pink:   UIColor(red: 0.70, green: 0.35, blue: 0.56, alpha: 1)
+                ],
+                unlockCondition: "Purchase for 300 coins",
+                isUnlocked: { defaults.bool(forKey: "skin_purchased_candy") },
+                coinPrice: 300
+            ),
+
+            // Ice — cool whites, light blues, silver (animated: shimmer)
+            SkinDefinition(
+                id: "ice",
+                name: "Ice",
+                colors: [
+                    .coral:  UIColor(red: 0.85, green: 0.92, blue: 0.98, alpha: 1),
+                    .blue:   UIColor(red: 0.60, green: 0.80, blue: 0.95, alpha: 1),
+                    .purple: UIColor(red: 0.75, green: 0.78, blue: 0.92, alpha: 1),
+                    .green:  UIColor(red: 0.70, green: 0.90, blue: 0.88, alpha: 1),
+                    .yellow: UIColor(red: 0.90, green: 0.92, blue: 0.95, alpha: 1),
+                    .pink:   UIColor(red: 0.82, green: 0.85, blue: 0.95, alpha: 1)
+                ],
+                darkColors: [
+                    .coral:  UIColor(red: 0.60, green: 0.65, blue: 0.69, alpha: 1),
+                    .blue:   UIColor(red: 0.42, green: 0.56, blue: 0.67, alpha: 1),
+                    .purple: UIColor(red: 0.53, green: 0.55, blue: 0.65, alpha: 1),
+                    .green:  UIColor(red: 0.49, green: 0.63, blue: 0.62, alpha: 1),
+                    .yellow: UIColor(red: 0.63, green: 0.65, blue: 0.67, alpha: 1),
+                    .pink:   UIColor(red: 0.58, green: 0.60, blue: 0.67, alpha: 1)
+                ],
+                unlockCondition: "Purchase for 400 coins",
+                isUnlocked: { defaults.bool(forKey: "skin_purchased_ice") },
+                coinPrice: 400,
+                animationType: .shimmer
+            ),
+
+            // Holographic — rainbow iridescent (animated: color shift)
+            SkinDefinition(
+                id: "holographic",
+                name: "Holographic",
+                colors: [
+                    .coral:  UIColor(red: 1.0, green: 0.4, blue: 0.5, alpha: 1),
+                    .blue:   UIColor(red: 0.3, green: 0.6, blue: 1.0, alpha: 1),
+                    .purple: UIColor(red: 0.7, green: 0.3, blue: 0.9, alpha: 1),
+                    .green:  UIColor(red: 0.2, green: 0.9, blue: 0.6, alpha: 1),
+                    .yellow: UIColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 1),
+                    .pink:   UIColor(red: 1.0, green: 0.4, blue: 0.8, alpha: 1)
+                ],
+                darkColors: [
+                    .coral:  UIColor(red: 0.7, green: 0.28, blue: 0.35, alpha: 1),
+                    .blue:   UIColor(red: 0.21, green: 0.42, blue: 0.70, alpha: 1),
+                    .purple: UIColor(red: 0.49, green: 0.21, blue: 0.63, alpha: 1),
+                    .green:  UIColor(red: 0.14, green: 0.63, blue: 0.42, alpha: 1),
+                    .yellow: UIColor(red: 0.70, green: 0.63, blue: 0.21, alpha: 1),
+                    .pink:   UIColor(red: 0.70, green: 0.28, blue: 0.56, alpha: 1)
+                ],
+                unlockCondition: "Purchase for 500 coins",
+                isUnlocked: { defaults.bool(forKey: "skin_purchased_holographic") },
+                coinPrice: 500,
+                animationType: .colorShift
             )
         ]
     }

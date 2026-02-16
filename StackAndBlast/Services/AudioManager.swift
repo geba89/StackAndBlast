@@ -131,10 +131,21 @@ final class AudioManager {
 
     // MARK: - Engine Setup
 
+    /// Whether the audio engine initialized successfully.
+    /// When false, all playback is silently skipped.
+    private var engineReady = false
+
     private func setupEngine() {
+        // Guard against simulator / unavailable audio hardware.
+        // outputFormat can return 0 Hz which causes an uncatchable ObjC exception in connect().
+        let outputFormat = audioEngine.outputNode.outputFormat(forBus: 0)
+        guard outputFormat.sampleRate > 0, outputFormat.channelCount > 0 else {
+            print("[AudioManager] No valid audio output — running without sound")
+            return
+        }
+
         audioEngine.attach(mixerNode)
-        audioEngine.connect(mixerNode, to: audioEngine.outputNode,
-                            format: audioEngine.outputNode.outputFormat(forBus: 0))
+        audioEngine.connect(mixerNode, to: audioEngine.outputNode, format: outputFormat)
 
         let format = AVAudioFormat(standardFormatWithSampleRate: Double(sampleRate), channels: 1)!
         for _ in 0..<playerCount {
@@ -147,14 +158,16 @@ final class AudioManager {
         do {
             audioEngine.prepare()
             try audioEngine.start()
+            engineReady = true
         } catch {
-            // Audio unavailable — sounds will silently not play
+            print("[AudioManager] Engine failed to start: \(error.localizedDescription)")
         }
     }
 
     // MARK: - Playback
 
     private func playBuffer(_ buffer: AVAudioPCMBuffer, volume: Float) {
+        guard engineReady else { return }
         let player = playerNodes[currentPlayerIndex]
         currentPlayerIndex = (currentPlayerIndex + 1) % playerCount
 

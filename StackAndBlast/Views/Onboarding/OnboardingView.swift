@@ -70,6 +70,7 @@ struct OnboardingView: View {
                         .padding(.vertical, 16)
                         .background(Color.blockCoral, in: RoundedRectangle(cornerRadius: 12))
                 }
+                .frame(maxWidth: 500)
                 .padding(.horizontal, 32)
                 .padding(.bottom, 48)
 

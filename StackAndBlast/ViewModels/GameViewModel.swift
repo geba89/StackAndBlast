@@ -56,6 +56,45 @@ final class GameViewModel {
     /// Whether game-over stats have been recorded for this session (prevent double-counting).
     private var hasRecordedStats = false
 
+    // MARK: - Double Score
+
+    /// Whether the player has already doubled their score this game.
+    var hasDoubledScore: Bool = false
+
+    /// Coins earned in the current game (for display on game over screen).
+    var coinsEarnedThisGame: Int = 0
+
+    /// The daily challenge tier achieved (nil if not a daily challenge or not yet over).
+    var dailyChallengeTier: DailyChallengeTier?
+
+    // MARK: - Coin Power-Ups
+
+    /// Number of coin bombs used this game (max 1).
+    var coinBombsUsed: Int = 0
+
+    /// Number of shuffles used this game (max 3).
+    var shufflesUsed: Int = 0
+
+    /// Whether the player is in coin-bomb targeting mode (during gameplay).
+    var isCoinBombMode: Bool = false
+
+    /// Whether the coin bomb button should be enabled.
+    var canUseCoinBomb: Bool {
+        coinBombsUsed < GameConstants.maxCoinBombsPerGame
+        && CoinManager.shared.canAfford(GameConstants.coinBombPrice)
+        && engine.state == .playing
+        && !isAnimating
+    }
+
+    /// Whether the shuffle button should be enabled.
+    var canUseShuffle: Bool {
+        shufflesUsed < GameConstants.maxShufflesPerGame
+        && CoinManager.shared.canAfford(GameConstants.coinShufflePrice)
+        && engine.state == .playing
+        && !isAnimating
+        && gameMode != .dailyChallenge // Shuffle breaks deterministic pieces
+    }
+
     // MARK: - Actions
 
     func startGame(mode: GameMode = .classic) {
@@ -63,6 +102,12 @@ final class GameViewModel {
         isPaused = false
         wantsQuitToMenu = false
         hasRecordedStats = false
+        hasDoubledScore = false
+        coinsEarnedThisGame = 0
+        dailyChallengeTier = nil
+        coinBombsUsed = 0
+        shufflesUsed = 0
+        isCoinBombMode = false
         engine.startNewGame()
         scene?.updateGrid(engine.grid)
         scene?.updateTray(engine.tray)
@@ -74,6 +119,8 @@ final class GameViewModel {
             timeRemaining = 90
             startBlastRushTimer()
         }
+
+        AnalyticsManager.shared.logGameStart(mode: mode.analyticsName)
     }
 
     /// Start a Daily Challenge game (60s timed, deterministic pieces).
@@ -82,12 +129,20 @@ final class GameViewModel {
         isPaused = false
         wantsQuitToMenu = false
         hasRecordedStats = false
+        hasDoubledScore = false
+        coinsEarnedThisGame = 0
+        dailyChallengeTier = nil
+        coinBombsUsed = 0
+        shufflesUsed = 0
+        isCoinBombMode = false
         engine.startDailyChallenge()
         scene?.updateGrid(engine.grid)
         scene?.updateTray(engine.tray)
 
         timeRemaining = GameConstants.dailyChallengeDuration
         startBlastRushTimer() // Reuse the same countdown timer
+
+        AnalyticsManager.shared.logGameStart(mode: "daily_challenge")
     }
 
     func togglePause() {
@@ -187,7 +242,7 @@ final class GameViewModel {
         }
     }
 
-    /// Centralized game-over handling: submit score, record stats, play sound, mark daily as done.
+    /// Centralized game-over handling: submit score, record stats, earn coins, check achievements.
     private func handleGameOver() {
         AudioManager.shared.playGameOver()
         ScoreManager.shared.submitScore(engine.score, mode: gameMode)
@@ -208,11 +263,34 @@ final class GameViewModel {
         )
         hasRecordedStats = true
 
-        // Mark daily challenge as completed for today
+        // Award coins based on score
+        let coins = CoinManager.coinsForScore(engine.score)
+        CoinManager.shared.earn(coins, source: "gameplay")
+        coinsEarnedThisGame = coins
+
+        // Log game over analytics
+        AnalyticsManager.shared.logGameOver(
+            mode: gameMode.analyticsName,
+            score: engine.score,
+            blasts: engine.totalBlasts,
+            piecesPlaced: engine.piecesPlaced,
+            maxCombo: engine.maxCombo
+        )
+        AnalyticsManager.shared.logCoinsEarned(amount: coins, source: "gameplay")
+
+        // Check achievements
+        AchievementManager.shared.checkAchievements()
+
+        // Daily challenge reward
         if gameMode == .dailyChallenge {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             UserDefaults.standard.set(formatter.string(from: Date()), forKey: "lastDailyChallengeDate")
+
+            if let result = DailyChallengeRewardManager.shared.claimReward(score: engine.score) {
+                dailyChallengeTier = result.tier
+                coinsEarnedThisGame += result.coins
+            }
         }
     }
 
@@ -224,7 +302,6 @@ final class GameViewModel {
     // MARK: - Bomb Continue
 
     /// Show a rewarded ad, then activate bomb placement mode on success.
-    /// If no ad is loaded yet, tries to load one first.
     func watchAdForBomb() {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first?.rootViewController else { return }
@@ -233,18 +310,58 @@ final class GameViewModel {
             AdManager.shared.showRewardedAd(from: rootVC) { [weak self] success in
                 guard let self, success else { return }
                 self.isBombMode = true
+                AnalyticsManager.shared.logBombAdWatched(score: self.engine.score)
             }
         }
 
         if AdManager.shared.isRewardedAdReady {
             presentAd()
         } else {
-            // Ad not loaded yet — try loading, then present when ready
-            AdManager.shared.loadRewardedAd { ready in
+            AdManager.shared.loadBombRewardedAd { ready in
                 if ready {
                     presentAd()
                 }
             }
+        }
+    }
+
+    // MARK: - Double Score Ad
+
+    /// Show a rewarded ad to double the player's score.
+    func watchAdForDoubleScore() {
+        guard !hasDoubledScore else { return }
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first?.rootViewController else { return }
+
+        let presentAd = { [weak self] in
+            AdManager.shared.showDoubleScoreAd(from: rootVC) { [weak self] success in
+                guard let self, success else { return }
+                let originalScore = self.engine.score
+                self.engine.addBonusScore(originalScore)
+                self.hasDoubledScore = true
+
+                // Award extra coins for the bonus score
+                let bonusCoins = CoinManager.coinsForScore(originalScore)
+                CoinManager.shared.earn(bonusCoins, source: "double_score_ad")
+                self.coinsEarnedThisGame += bonusCoins
+
+                AnalyticsManager.shared.logDoubleScoreAdWatched(originalScore: originalScore)
+                AnalyticsManager.shared.logCoinsEarned(amount: bonusCoins, source: "double_score_ad")
+
+                // Update high scores with the new doubled score
+                StatsManager.shared.updateBests(
+                    score: self.engine.score,
+                    maxCombo: self.engine.maxCombo
+                )
+                ScoreManager.shared.submitScore(self.engine.score, mode: self.gameMode)
+            }
+        }
+
+        if AdManager.shared.isDoubleScoreAdReady {
+            presentAd()
+        } else {
+            AdManager.shared.loadDoubleScoreAd()
         }
     }
 
@@ -271,6 +388,48 @@ final class GameViewModel {
                 AudioManager.shared.playGameOver()
             }
         }
+    }
+
+    // MARK: - Coin Power-Up Actions
+
+    /// Activate coin bomb targeting mode — spend coins, then player taps grid to detonate.
+    func activateCoinBomb() {
+        guard canUseCoinBomb else { return }
+        guard CoinManager.shared.spend(GameConstants.coinBombPrice) else { return }
+        coinBombsUsed += 1
+        isCoinBombMode = true
+        AnalyticsManager.shared.logCoinPowerUpUsed(type: "bomb", price: GameConstants.coinBombPrice)
+    }
+
+    /// Place the coin bomb at a grid position during gameplay.
+    func placeCoinBomb(at position: GridPosition) {
+        guard isCoinBombMode else { return }
+        isCoinBombMode = false
+
+        let result = engine.useCoinBomb(at: position)
+        guard result.success else { return }
+
+        isAnimating = true
+        scene?.isAnimating = true
+        scene?.animateBombExplosion(result: result) { [weak self] in
+            guard let self else { return }
+            self.isAnimating = false
+            self.scene?.isAnimating = false
+            self.scene?.updateGrid(self.engine.grid)
+            self.scene?.updateTray(self.engine.tray)
+        }
+    }
+
+    /// Spend coins and regenerate tray pieces.
+    func useShuffle() {
+        guard canUseShuffle else { return }
+        guard CoinManager.shared.spend(GameConstants.coinShufflePrice) else { return }
+        shufflesUsed += 1
+        engine.shuffleTray()
+        scene?.updateTray(engine.tray)
+        AudioManager.shared.playPlacement()
+        HapticManager.shared.playPlacement()
+        AnalyticsManager.shared.logCoinPowerUpUsed(type: "shuffle", price: GameConstants.coinShufflePrice)
     }
 
     // MARK: - Blast Rush Timer

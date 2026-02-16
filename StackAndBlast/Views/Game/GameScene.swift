@@ -5,7 +5,8 @@ final class GameScene: SKScene {
 
     // MARK: - Constants
 
-    /// Padding around the grid.
+    /// Minimum padding around the grid. On iPad where the grid is capped,
+    /// the effective padding is larger since the grid doesn't fill the screen.
     private let gridPadding: CGFloat = 16
 
     /// Corner radius for block nodes.
@@ -169,8 +170,9 @@ final class GameScene: SKScene {
 
         guard !pieces.isEmpty else { return }
 
-        let trayY = size.height * 0.10
-        let trayWidth = size.width - gridPadding * 4
+        let trayY = trayCenterY
+        let gridWidth = cellSize * CGFloat(GameConstants.gridSize)
+        let trayWidth = gridWidth + gridPadding * 2
         let slotWidth = trayWidth / CGFloat(pieces.count)
         let startX = (size.width - trayWidth) / 2
 
@@ -279,7 +281,40 @@ final class GameScene: SKScene {
             puLabel.run(SKAction.repeatForever(pulse))
         }
 
+        // Animated skin effects
+        if let animationType = SkinManager.shared.activeSkin.animationType {
+            applySkinAnimation(to: node, blockColor: color, type: animationType)
+        }
+
         return node
+    }
+
+    /// Apply a continuous animation effect to a block node for animated skins.
+    private func applySkinAnimation(to node: SKShapeNode, blockColor: BlockColor, type: SkinAnimationType) {
+        switch type {
+        case .colorShift:
+            // Slowly rotate hue for iridescent effect
+            let baseColor = SkinManager.shared.colorForBlock(blockColor)
+            var hue: CGFloat = 0, sat: CGFloat = 0, bri: CGFloat = 0, alpha: CGFloat = 0
+            baseColor.getHue(&hue, saturation: &sat, brightness: &bri, alpha: &alpha)
+
+            let duration: TimeInterval = 4.0
+            let shift = SKAction.customAction(withDuration: duration) { node, elapsed in
+                guard let shape = node as? SKShapeNode else { return }
+                let progress = elapsed / CGFloat(duration)
+                let newHue = (hue + progress * 0.15).truncatingRemainder(dividingBy: 1.0)
+                shape.fillColor = UIColor(hue: newHue, saturation: sat, brightness: bri, alpha: alpha)
+            }
+            node.run(SKAction.repeatForever(shift), withKey: "skinAnim")
+
+        case .shimmer:
+            // Subtle brightness pulse
+            let shimmer = SKAction.sequence([
+                SKAction.fadeAlpha(to: 0.82, duration: 0.6),
+                SKAction.fadeAlpha(to: 1.0, duration: 0.6)
+            ])
+            node.run(SKAction.repeatForever(shimmer), withKey: "skinAnim")
+        }
     }
 
     // MARK: - Blast Animation System
@@ -985,8 +1020,16 @@ final class GameScene: SKScene {
         guard !isAnimating, let touch = touches.first else { return }
         let location = touch.location(in: self)
 
-        // Bomb mode: tap grid to place bomb
+        // Bomb mode: tap grid to place bomb (ad-based after game over)
         if viewModel?.isBombMode == true {
+            if let gridPos = gridPosition(for: location) {
+                updateBombPreview(at: gridPos)
+            }
+            return
+        }
+
+        // Coin bomb mode: tap grid to place coin-purchased bomb (during gameplay)
+        if viewModel?.isCoinBombMode == true {
             if let gridPos = gridPosition(for: location) {
                 updateBombPreview(at: gridPos)
             }
@@ -1042,7 +1085,7 @@ final class GameScene: SKScene {
         let location = touch.location(in: self)
 
         // Bomb mode: update preview as finger moves
-        if viewModel?.isBombMode == true {
+        if viewModel?.isBombMode == true || viewModel?.isCoinBombMode == true {
             if let gridPos = gridPosition(for: location) {
                 updateBombPreview(at: gridPos)
             }
@@ -1077,6 +1120,18 @@ final class GameScene: SKScene {
                 let location = touch.location(in: self)
                 if let gridPos = gridPosition(for: location) {
                     viewModel?.placeBomb(at: gridPos)
+                }
+            }
+            clearBombPreview()
+            return
+        }
+
+        // Coin bomb mode: place coin-purchased bomb during gameplay
+        if viewModel?.isCoinBombMode == true {
+            if let touch = touches.first {
+                let location = touch.location(in: self)
+                if let gridPos = gridPosition(for: location) {
+                    viewModel?.placeCoinBomb(at: gridPos)
                 }
             }
             clearBombPreview()
@@ -1223,8 +1278,9 @@ final class GameScene: SKScene {
 
     /// Draw a subtle background pill behind the piece tray area.
     private func setupTrayBackground() {
-        let trayY = size.height * 0.10
-        let trayWidth = size.width - gridPadding * 2
+        let trayY = trayCenterY
+        let gridWidth = cellSize * CGFloat(GameConstants.gridSize)
+        let trayWidth = gridWidth + gridPadding * 2
         let trayHeight: CGFloat = cellSize * 2.5
 
         let bg = SKShapeNode(rectOf: CGSize(width: trayWidth, height: trayHeight), cornerRadius: 12)
@@ -1238,19 +1294,40 @@ final class GameScene: SKScene {
 
     // MARK: - Layout Helpers
 
-    /// Calculate the cell size based on the available scene width.
+    /// Y-center of the piece tray, scaled so the tray never clips off-screen.
+    private var trayCenterY: CGFloat {
+        cellSize * 1.25 + 30
+    }
+
+    /// Calculate the cell size that fits both width and height constraints.
+    /// On iPhone: uses full width as before. On iPad: scales up proportionally
+    /// but ensures the grid + tray + HUD all fit vertically.
+    ///
+    /// Vertical layout (bottom to top):
+    ///   bottom padding(30) + tray center offset(1.25*cell) + tray top half(1.25*cell)
+    ///   + gap(24) + grid(gridSize*cell) + HUD(60)
+    /// Solving: 30 + 1.25c + 1.25c + 24 + gridSize*c + 60 = height
+    ///          c * (gridSize + 2.5) = height - 114
     private func calculateCellSize() -> CGFloat {
-        let availableWidth = size.width - (gridPadding * 2)
-        return availableWidth / CGFloat(GameConstants.gridSize)
+        let gridSize = CGFloat(GameConstants.gridSize)
+        let widthBased = (size.width - gridPadding * 2) / gridSize
+        let heightBased = (size.height - 114) / (gridSize + 2.5)
+        return min(widthBased, heightBased)
     }
 
     /// Calculate the top-left origin of the grid in scene coordinates.
+    /// Centers the grid vertically between the HUD (top) and the tray (bottom).
     private func calculateGridOrigin(cellSize: CGFloat) -> CGPoint {
         let gridWidth = cellSize * CGFloat(GameConstants.gridSize)
+        let gridHeight = cellSize * CGFloat(GameConstants.gridSize)
         let x = (size.width - gridWidth) / 2
-        // Place grid in the upper portion of the screen, leaving room for piece tray
-        let y = size.height * 0.85
-        return CGPoint(x: x, y: y)
+        // Available vertical zone: below HUD, above tray
+        let availableTop = size.height - 60
+        let availableBottom = trayCenterY + cellSize * 1.25 + 16
+        // Center the grid in this zone
+        let centerY = (availableTop + availableBottom) / 2
+        let y = centerY + gridHeight / 2
+        return CGPoint(x: x, y: min(y, availableTop))
     }
 
     /// Convert a grid position to scene coordinates (center of the cell).

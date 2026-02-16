@@ -1,0 +1,108 @@
+{
+  "identifier" : "A1B2C3D4",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "AA000001",
+      "localizations" : [
+        {
+          "description" : "Remove all interstitial ads permanently",
+          "displayName" : "Remove Ads",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.piotrgebski.StackAndBlast.removeAds",
+      "referenceName" : "Remove Ads",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "AA000002",
+      "localizations" : [
+        {
+          "description" : "500 coins to spend in the game",
+          "displayName" : "500 Coins",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.piotrgebski.StackAndBlast.coinPack.small",
+      "referenceName" : "Small Coin Pack",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "AA000003",
+      "localizations" : [
+        {
+          "description" : "3000 coins, best value",
+          "displayName" : "3,000 Coins",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.piotrgebski.StackAndBlast.coinPack.large",
+      "referenceName" : "Large Coin Pack",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "AA000004",
+      "localizations" : [
+        {
+          "description" : "Remove Ads plus 1000 Coins, limited time offer",
+          "displayName" : "Starter Bundle",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.piotrgebski.StackAndBlast.starterBundle",
+      "referenceName" : "Starter Bundle",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : false,
+      "internalID" : "AA000005",
+      "localizations" : [
+        {
+          "description" : "Unlock the vibrant Neon block skin",
+          "displayName" : "Neon Skin Bundle",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.piotrgebski.StackAndBlast.skinBundle.neon",
+      "referenceName" : "Neon Skin Bundle",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "AA000006",
+      "localizations" : [
+        {
+          "description" : "Unlock the cosmic Galaxy block skin",
+          "displayName" : "Galaxy Skin Bundle",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.piotrgebski.StackAndBlast.skinBundle.galaxy",
+      "referenceName" : "Galaxy Skin Bundle",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}

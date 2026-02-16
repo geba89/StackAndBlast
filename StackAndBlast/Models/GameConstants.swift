@@ -60,6 +60,17 @@ enum GameConstants {
     /// A power-up spawns on the grid every N pieces placed.
     static let powerUpSpawnInterval = 8
 
+    // MARK: - Coin Power-Ups
+
+    /// Cost in coins to use a bomb during gameplay.
+    static let coinBombPrice = 100
+    /// Cost in coins to shuffle the tray.
+    static let coinShufflePrice = 50
+    /// Maximum coin-purchased bombs per game.
+    static let maxCoinBombsPerGame = 1
+    /// Maximum shuffles per game.
+    static let maxShufflesPerGame = 3
+
     // MARK: - Animation durations (seconds)
 
     static let placementBounceDuration: Double = 0.15

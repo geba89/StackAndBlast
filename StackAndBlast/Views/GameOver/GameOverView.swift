@@ -7,7 +7,13 @@ struct GameOverView: View {
     let totalBlasts: Int
     let piecesPlaced: Int
     let hasContinued: Bool
+    let gameMode: GameMode
+    let hasDoubledScore: Bool
+    let coinsEarned: Int
+    let dailyChallengeTier: DailyChallengeTier?
     let onUseBomb: () -> Void
+    let onDoubleScore: () -> Void
+    let onShare: () -> Void
     let onPlayAgain: () -> Void
     let onMainMenu: () -> Void
 
@@ -30,6 +36,23 @@ struct GameOverView: View {
                     Text("\(score)")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundStyle(Color(red: 0.882, green: 0.439, blue: 0.333)) // Coral
+                }
+
+                // Coin earnings
+                if coinsEarned > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bitcoinsign.circle.fill")
+                            .foregroundStyle(.yellow)
+                        Text("+\(coinsEarned) coins")
+                            .font(.system(.subheadline, design: .rounded))
+                            .fontWeight(.bold)
+                            .foregroundStyle(.yellow)
+                    }
+                }
+
+                // Daily challenge tier badge
+                if let tier = dailyChallengeTier {
+                    DailyChallengeTierBadge(tier: tier)
                 }
 
                 // Stats grid
@@ -73,6 +96,53 @@ struct GameOverView: View {
                         }
                     }
 
+                    // DOUBLE SCORE — once per game, requires ad
+                    if !hasDoubledScore {
+                        Button(action: onDoubleScore) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.up.forward")
+                                    .font(.title3)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("DOUBLE SCORE")
+                                        .font(.system(.headline, design: .rounded))
+                                        .fontWeight(.bold)
+                                    Text("Watch ad to 2× your score")
+                                        .font(.system(.caption2, design: .rounded))
+                                        .opacity(0.8)
+                                }
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.2, green: 0.7, blue: 0.3),
+                                        Color(red: 0.1, green: 0.5, blue: 0.2)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                        }
+                    }
+
+                    // SHARE button
+                    Button(action: onShare) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.subheadline)
+                            Text("SHARE")
+                                .font(.system(.subheadline, design: .rounded))
+                                .fontWeight(.bold)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                    }
+
                     Button(action: onPlayAgain) {
                         Text("PLAY AGAIN")
                             .font(.system(.headline, design: .rounded))
@@ -91,12 +161,41 @@ struct GameOverView: View {
                 }
             }
             .padding(32)
+            .frame(maxWidth: 420)
             .background(
                 RoundedRectangle(cornerRadius: 20)
                     .fill(Color(red: 0.118, green: 0.153, blue: 0.180))
             )
             .padding(.horizontal, 24)
         }
+    }
+}
+
+// MARK: - Daily Challenge Tier Badge
+
+private struct DailyChallengeTierBadge: View {
+    let tier: DailyChallengeTier
+
+    private var tierColor: Color {
+        switch tier {
+        case .bronze: return Color(red: 0.804, green: 0.498, blue: 0.196)
+        case .silver: return Color(white: 0.75)
+        case .gold:   return Color.yellow
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "medal.fill")
+                .foregroundStyle(tierColor)
+            Text("\(tier.label) — +\(tier.coinReward) coins")
+                .font(.system(.subheadline, design: .rounded))
+                .fontWeight(.bold)
+                .foregroundStyle(tierColor)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(tierColor.opacity(0.15), in: Capsule())
     }
 }
 

@@ -177,6 +177,49 @@ final class GameEngine {
         state = .gameOver
     }
 
+    /// Add bonus points to the current score (e.g. from double-score ad reward).
+    func addBonusScore(_ points: Int) {
+        score += points
+    }
+
+    /// Regenerate the tray with new random pieces. Used by the coin-purchased Shuffle power-up.
+    func shuffleTray() {
+        tray = pieceGenerator.generateTray()
+    }
+
+    /// Use a coin-purchased bomb to clear a 6×6 area during active gameplay.
+    /// Unlike `useBomb(at:)`, this works during `.playing` state and does not affect `hasContinued`.
+    func useCoinBomb(at center: GridPosition) -> BombResult {
+        guard state == .playing else {
+            return BombResult(success: false, clearedPositions: [], clearedBlockIDs: [], gameResumed: true)
+        }
+
+        let minRow = max(center.row - 2, 0)
+        let maxRow = min(center.row + 3, GameConstants.gridSize - 1)
+        let minCol = max(center.col - 2, 0)
+        let maxCol = min(center.col + 3, GameConstants.gridSize - 1)
+
+        var clearedPositions: [GridPosition] = []
+        var clearedBlockIDs: [UUID] = []
+
+        for row in minRow...maxRow {
+            for col in minCol...maxCol {
+                if let block = grid[row][col] {
+                    clearedPositions.append(GridPosition(row: row, col: col))
+                    clearedBlockIDs.append(block.id)
+                    grid[row][col] = nil
+                }
+            }
+        }
+
+        return BombResult(
+            success: true,
+            clearedPositions: clearedPositions,
+            clearedBlockIDs: clearedBlockIDs,
+            gameResumed: true
+        )
+    }
+
     /// Use the bomb to clear a 6×6 area centered on `center`. Limited to 1 per game.
     /// Does not trigger blast cascades — simply removes blocks in the area.
     func useBomb(at center: GridPosition) -> BombResult {
