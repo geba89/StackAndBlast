@@ -65,6 +65,7 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
         UIStatusBarStyle: UIStatusBarStyleLightContent
         NSUserTrackingUsageDescription: "This allows us to show you relevant ads and support free gameplay."
+        ITSAppUsesNonExemptEncryption: false
         # Google AdMob application ID
         GADApplicationIdentifier: "ca-app-pub-2741592186352961~7671478866"
     dependencies:
