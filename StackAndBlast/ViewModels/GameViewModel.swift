@@ -246,6 +246,7 @@ final class GameViewModel {
     private func handleGameOver() {
         AudioManager.shared.playGameOver()
         ScoreManager.shared.submitScore(engine.score, mode: gameMode)
+        LeaderboardManager.shared.submitScore(engine.score, mode: gameMode)
 
         // Record accumulative totals once per game (prevent double-counting after bomb)
         if !hasRecordedStats {
@@ -355,6 +356,7 @@ final class GameViewModel {
                     maxCombo: self.engine.maxCombo
                 )
                 ScoreManager.shared.submitScore(self.engine.score, mode: self.gameMode)
+                LeaderboardManager.shared.submitScore(self.engine.score, mode: self.gameMode)
             }
         }
 

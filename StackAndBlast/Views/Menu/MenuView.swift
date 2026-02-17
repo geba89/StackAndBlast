@@ -51,6 +51,18 @@ struct MenuView: View {
 
                     Spacer()
 
+                    // Leaderboard (Game Center)
+                    if LeaderboardManager.shared.isAuthenticated {
+                        Button {
+                            LeaderboardManager.shared.showLeaderboard()
+                        } label: {
+                            Image(systemName: "list.number")
+                                .font(.title3)
+                                .foregroundStyle(.white.opacity(0.7))
+                                .padding(8)
+                        }
+                    }
+
                     // Trophy (achievements)
                     Button {
                         showAchievements = true

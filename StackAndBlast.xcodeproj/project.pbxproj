@@ -58,6 +58,7 @@
 		E4232C5187B25B37035CFAC8 /* BlockColor+Accessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3038A55103F21E16501C242A /* BlockColor+Accessibility.swift */; };
 		EE9DEB24BF2C18D595A5F18C /* SkinManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA0A61077F854214A7697C6 /* SkinManager.swift */; };
 		EEA9F18F232A7244EDFCF1B2 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A785F282A852AD9E764699E /* GameState.swift */; };
+		EF94B0913B654083332A771A /* LeaderboardManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D701CD40CA0CA21B6CF5E9AF /* LeaderboardManager.swift */; };
 		EFF71C19D14249A8A0D93BA3 /* DailyRewardPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5254FC611E6AB9E8FCBFEEF4 /* DailyRewardPopupView.swift */; };
 		F77F3895380A167907B62727 /* GameEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35410307CB0485E379F242BC /* GameEngine.swift */; };
 		FC330F6E167AD7109DEAAD08 /* ShareScoreCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F2BB2B0939AB4905980F02 /* ShareScoreCardView.swift */; };
@@ -111,6 +112,7 @@
 		CDD5466C591FCD437983192F /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
 		D2B75ECC7A71F4C7AE9112DC /* PieceDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PieceDefinitions.swift; sourceTree = "<group>"; };
 		D4622D61C74A621F8FA0872F /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
+		D701CD40CA0CA21B6CF5E9AF /* LeaderboardManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardManager.swift; sourceTree = "<group>"; };
 		D99EFBCD94DFC012B5E70FBA /* CoreHaptics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreHaptics.framework; path = System/Library/Frameworks/CoreHaptics.framework; sourceTree = SDKROOT; };
 		DC0F75865A72843A7CC5E513 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		DEA0A61077F854214A7697C6 /* SkinManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkinManager.swift; sourceTree = "<group>"; };
@@ -275,6 +277,7 @@
 				ED42FD62CFADAAFD00F55DF3 /* CoinManager.swift */,
 				B0DA143612035E002056B863 /* DailyChallengeRewardManager.swift */,
 				60E40AA8213878C44047FB5A /* HapticManager.swift */,
+				D701CD40CA0CA21B6CF5E9AF /* LeaderboardManager.swift */,
 				CDAEEA966180CE3AF299ABBE /* NetworkMonitor.swift */,
 				80C54DC31EC0EDB650B8FEA5 /* ScoreManager.swift */,
 				8727B3C8A84B811BBEC39089 /* SettingsManager.swift */,
@@ -467,6 +470,7 @@
 				865E171320EF18564FA52580 /* GameViewModel.swift in Sources */,
 				8B8547D7C7087239C602A9A4 /* GridPosition.swift in Sources */,
 				9C11C0EBA703BD31462D105F /* HapticManager.swift in Sources */,
+				EF94B0913B654083332A771A /* LeaderboardManager.swift in Sources */,
 				752B24006740E5B7B62744A5 /* MenuView.swift in Sources */,
 				DF6A08FBD68FBECE65285C5B /* NetworkMonitor.swift in Sources */,
 				8F66F8CB5D7576F5DAAAB683 /* OnboardingView.swift in Sources */,

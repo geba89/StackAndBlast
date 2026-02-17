@@ -87,6 +87,15 @@ final class AnalyticsManager {
         ])
     }
 
+    // MARK: - Leaderboard Events
+
+    func logLeaderboardScoreSubmitted(mode: String, score: Int) {
+        Analytics.logEvent("leaderboard_score_submitted", parameters: [
+            "mode": mode,
+            "score": score
+        ])
+    }
+
     // MARK: - Social Events
 
     func logShareScore(score: Int, mode: String) {

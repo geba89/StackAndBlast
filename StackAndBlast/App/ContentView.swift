@@ -112,6 +112,9 @@ struct ContentView: View {
 
             // Load IAP products
             await StoreManager.shared.loadProducts()
+
+            // Authenticate with Game Center for leaderboards
+            LeaderboardManager.shared.configure()
         }
         .onChange(of: viewModel.wantsQuitToMenu) { _, wantsQuit in
             if wantsQuit {

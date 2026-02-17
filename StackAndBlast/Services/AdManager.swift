@@ -18,12 +18,11 @@ final class AdManager: NSObject {
     /// Whether an interstitial ad is loaded and ready.
     private(set) var isInterstitialReady: Bool = false
 
-    // MARK: - Ad Unit IDs (replace with real IDs from AdMob console)
+    // MARK: - Ad Unit IDs
 
     private let bombRewardedAdUnitID = "ca-app-pub-2741592186352961/8805323485"
-    // TODO: Replace with real ad unit IDs from AdMob console
-    private let doubleScoreRewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313" // Test ID
-    private let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910" // Test ID
+    private let doubleScoreRewardedAdUnitID = "ca-app-pub-2741592186352961/8805323485"
+    private let interstitialAdUnitID = "ca-app-pub-2741592186352961/9545196682"
 
     // MARK: - Ad Instances
 

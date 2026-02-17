@@ -69,6 +69,9 @@ final class GameScene: SKScene {
     /// Whether animations are playing (blocks touch input).
     var isAnimating: Bool = false
 
+    /// Last position where a drag trail particle was spawned (throttle particle rate).
+    private var lastTrailPosition: CGPoint = .zero
+
     // MARK: - Lifecycle
 
     override func didMove(to view: SKView) {
@@ -853,10 +856,12 @@ final class GameScene: SKScene {
 
     // MARK: - Refresh All Blocks
 
-    /// Rebuild all block nodes from the current engine grid state.
+    /// Rebuild all block nodes and grid background from the current engine state.
     /// Used when settings change mid-game (e.g. colorblind toggle, skin change).
     func refreshAllBlocks() {
         guard let vm = viewModel else { return }
+        // Rebuild grid background to pick up new skin grid colors
+        setupGrid()
         // Remove all existing block nodes
         for (_, node) in blockNodes {
             node.removeFromParent()
@@ -1072,6 +1077,7 @@ final class GameScene: SKScene {
                 // Fade out the tray version
                 trayNode.alpha = 0.3
 
+                lastTrailPosition = location
                 viewModel?.beginDrag(piece: piece)
                 AudioManager.shared.playPickup(cellCount: piece.cellCount)
                 HapticManager.shared.playPickup()
@@ -1097,6 +1103,14 @@ final class GameScene: SKScene {
 
         // Move the drag node above the finger
         dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
+
+        // Spawn drag trail particles (throttled by distance to avoid particle spam)
+        let dx = location.x - lastTrailPosition.x
+        let dy = location.y - lastTrailPosition.y
+        if dx * dx + dy * dy > 16 { // ~4pt movement threshold
+            lastTrailPosition = location
+            spawnDragTrailParticle(at: dragNode.position, color: piece.color)
+        }
 
         // Determine which grid cell the piece origin (cell 0,0) snaps to
         // Offset from drag node center to where cell (0,0) visually sits
@@ -1231,6 +1245,36 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Spawn a small color-matched particle at the drag position for a trailing effect.
+    private func spawnDragTrailParticle(at position: CGPoint, color: BlockColor) {
+        let skinColor = SkinManager.shared.colorForBlock(color)
+        for _ in 0..<2 {
+            let size = CGFloat.random(in: 2.5...4.5)
+            let particle = SKShapeNode(rectOf: CGSize(width: size, height: size), cornerRadius: 1)
+            particle.fillColor = skinColor.withAlphaComponent(0.7)
+            particle.strokeColor = .clear
+            particle.position = CGPoint(
+                x: position.x + CGFloat.random(in: -6...6),
+                y: position.y + CGFloat.random(in: -6...6)
+            )
+            particle.zPosition = 9
+            addChild(particle)
+
+            let duration = CGFloat.random(in: 0.2...0.35)
+            let drift = SKAction.moveBy(x: CGFloat.random(in: -8...8),
+                                         y: CGFloat.random(in: -12...(-4)),
+                                         duration: duration)
+            drift.timingMode = .easeOut
+            particle.run(SKAction.group([
+                drift,
+                SKAction.fadeOut(withDuration: duration),
+                SKAction.scale(to: 0.2, duration: duration)
+            ])) {
+                particle.removeFromParent()
+            }
+        }
+    }
+
     /// Clean up all drag-related visual state.
     private func cleanupDragState() {
         draggedPieceNode?.removeFromParent()
@@ -1247,12 +1291,19 @@ final class GameScene: SKScene {
 
     // MARK: - Grid Setup
 
-    /// Draw the 9×9 grid background with alternating cell shading.
+    /// Draw the grid background with alternating cell shading.
+    /// Uses the active skin's grid colors when available, otherwise falls back to default dark gray.
     private func setupGrid() {
         gridNode.removeFromParent()
         gridNode = SKNode()
         gridNode.zPosition = 0
         addChild(gridNode)
+
+        let skin = SkinManager.shared.activeSkin
+        let defaultLight = UIColor(red: 0.176, green: 0.204, blue: 0.216, alpha: 1) // #2D3436
+        let defaultDark = UIColor(red: 0.149, green: 0.173, blue: 0.184, alpha: 1)
+        let lightColor = skin.gridLightColor ?? defaultLight
+        let darkColor = skin.gridDarkColor ?? defaultDark
 
         for row in 0..<GameConstants.gridSize {
             for col in 0..<GameConstants.gridSize {
@@ -1263,11 +1314,8 @@ final class GameScene: SKScene {
                 cell.position = CGPoint(x: x + cellSize / 2, y: y - cellSize / 2)
                 cell.strokeColor = .clear
 
-                // Alternating checkerboard pattern (two shades of dark gray)
                 let isLight = (row + col) % 2 == 0
-                cell.fillColor = isLight
-                    ? UIColor(red: 0.176, green: 0.204, blue: 0.216, alpha: 1) // #2D3436
-                    : UIColor(red: 0.149, green: 0.173, blue: 0.184, alpha: 1)
+                cell.fillColor = isLight ? lightColor : darkColor
                 cell.name = "cell_\(row)_\(col)"
                 gridNode.addChild(cell)
             }
