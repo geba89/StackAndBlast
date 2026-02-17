@@ -202,21 +202,43 @@ final class GameScene: SKScene {
                 let inset: CGFloat = 1.0
                 let blockSize = CGSize(width: miniCellSize - inset * 2, height: miniCellSize - inset * 2)
                 let blockNode = SKShapeNode(rectOf: blockSize, cornerRadius: 3)
-                blockNode.fillColor = SkinManager.shared.colorForBlock(piece.color)
-                blockNode.strokeColor = SkinManager.shared.darkColorForBlock(piece.color)
-                blockNode.lineWidth = 0.5
                 blockNode.position = CGPoint(x: x, y: y)
 
-                // Colorblind symbol in tray pieces
-                if SettingsManager.shared.isColorblindMode {
-                    let label = SKLabelNode(text: piece.color.colorblindSymbol)
-                    label.fontSize = blockSize.width * 0.5
-                    label.fontName = "HelveticaNeue-Bold"
+                if let powerUp = piece.powerUp {
+                    // Power-up pieces get a golden background with pulsing icon
+                    blockNode.fillColor = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 1)
+                    blockNode.strokeColor = UIColor(red: 0.65, green: 0.50, blue: 0.10, alpha: 1)
+                    blockNode.lineWidth = 1.0
+
+                    let label = SKLabelNode(text: powerUp.symbol)
+                    label.fontSize = blockSize.width * 0.6
                     label.fontColor = .white
                     label.verticalAlignmentMode = .center
                     label.horizontalAlignmentMode = .center
                     label.zPosition = 1
                     blockNode.addChild(label)
+
+                    let pulse = SKAction.sequence([
+                        SKAction.scale(to: 1.1, duration: 0.5),
+                        SKAction.scale(to: 0.95, duration: 0.5)
+                    ])
+                    blockNode.run(SKAction.repeatForever(pulse))
+                } else {
+                    blockNode.fillColor = SkinManager.shared.colorForBlock(piece.color)
+                    blockNode.strokeColor = SkinManager.shared.darkColorForBlock(piece.color)
+                    blockNode.lineWidth = 0.5
+
+                    // Colorblind symbol in tray pieces
+                    if SettingsManager.shared.isColorblindMode {
+                        let label = SKLabelNode(text: piece.color.colorblindSymbol)
+                        label.fontSize = blockSize.width * 0.5
+                        label.fontName = "HelveticaNeue-Bold"
+                        label.fontColor = .white
+                        label.verticalAlignmentMode = .center
+                        label.horizontalAlignmentMode = .center
+                        label.zPosition = 1
+                        blockNode.addChild(label)
+                    }
                 }
 
                 container.addChild(blockNode)
@@ -233,7 +255,7 @@ final class GameScene: SKScene {
 
     // MARK: - Block Node Factory
 
-    /// Create a rounded-rectangle block node with skinned colors, colorblind symbols, and power-up overlay.
+    /// Create a rounded-rectangle block node with skinned colors and colorblind symbols.
     private func createBlockNode(color: BlockColor, powerUp: PowerUpType? = nil) -> SKShapeNode {
         let inset: CGFloat = 1.5 // gap between blocks
         let bSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
@@ -1196,9 +1218,30 @@ final class GameScene: SKScene {
         for cell in piece.cells {
             let x = offsetX + CGFloat(cell.col - minCol) * cellSize + cellSize / 2
             let y = offsetY - CGFloat(cell.row - minRow) * cellSize - cellSize / 2
-            let blockNode = createBlockNode(color: piece.color)
-            blockNode.position = CGPoint(x: x, y: y)
-            container.addChild(blockNode)
+
+            if let powerUp = piece.powerUp {
+                // Power-up drag node: golden block with power-up symbol
+                let inset: CGFloat = 1.5
+                let bSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
+                let blockNode = SKShapeNode(rectOf: bSize, cornerRadius: blockCornerRadius)
+                blockNode.fillColor = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 1)
+                blockNode.strokeColor = UIColor(red: 0.65, green: 0.50, blue: 0.10, alpha: 1)
+                blockNode.lineWidth = 1.5
+                blockNode.position = CGPoint(x: x, y: y)
+
+                let label = SKLabelNode(text: powerUp.symbol)
+                label.fontSize = bSize.width * 0.55
+                label.fontColor = .white
+                label.verticalAlignmentMode = .center
+                label.horizontalAlignmentMode = .center
+                label.zPosition = 2
+                blockNode.addChild(label)
+                container.addChild(blockNode)
+            } else {
+                let blockNode = createBlockNode(color: piece.color)
+                blockNode.position = CGPoint(x: x, y: y)
+                container.addChild(blockNode)
+            }
         }
 
         // Slight scale-up while dragging for visual feedback
@@ -1217,6 +1260,24 @@ final class GameScene: SKScene {
         ghostNodes.removeAll()
 
         guard let origin = position else { return }
+
+        // Power-up pieces: only need the single origin cell to be valid
+        if piece.isPowerUp {
+            guard origin.isValid else { return }
+            let goldColor = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 0.3)
+            let goldBorder = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 0.6)
+            let inset: CGFloat = 1.0
+            let ghostSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
+            let ghost = SKShapeNode(rectOf: ghostSize, cornerRadius: blockCornerRadius)
+            ghost.fillColor = goldColor
+            ghost.strokeColor = goldBorder
+            ghost.lineWidth = 1.0
+            ghost.position = scenePosition(for: origin)
+            ghost.zPosition = 2
+            addChild(ghost)
+            ghostNodes.append(ghost)
+            return
+        }
 
         let positions = piece.absolutePositions(at: origin)
         let isValid = positions.allSatisfy {

@@ -30,16 +30,21 @@ final class PieceGenerator {
     /// Optional seeded RNG for deterministic piece generation (Daily Challenge).
     private var seededRNG: SeededRandomNumberGenerator?
 
+    /// Tracks tray count to determine when to include a power-up piece.
+    private var trayCount: Int = 0
+
     // MARK: - Seed Control
 
     /// Enable deterministic mode with the given seed (for Daily Challenge).
     func setSeed(_ seed: UInt64) {
         seededRNG = SeededRandomNumberGenerator(seed: seed)
+        trayCount = 0
     }
 
     /// Return to system random (for Classic / Blast Rush modes).
     func clearSeed() {
         seededRNG = nil
+        trayCount = 0
     }
 
     /// Compute a stable seed from a date string using FNV-1a hash.
@@ -54,18 +59,26 @@ final class PieceGenerator {
 
     // MARK: - Tray Generation
 
-    /// Generate a tray of 3 random pieces.
+    /// Generate a tray of 3 random pieces. Every few trays, one piece is replaced with a power-up.
     func generateTray() -> [Piece] {
+        trayCount += 1
         var pieces: [Piece] = []
 
         // Guarantee at least one piece of 3+ cells
         let guaranteed = randomTemplate(minCells: 3)
         pieces.append(pieceFromTemplate(guaranteed))
 
-        // Fill remaining slots with weighted random pieces
-        for _ in 1..<GameConstants.piecesPerTray {
-            let template = randomTemplate()
-            pieces.append(pieceFromTemplate(template))
+        // Check if this tray should include a power-up piece (every 3rd tray, starting from tray 2)
+        let includePowerUp = trayCount >= 2 && trayCount % GameConstants.powerUpTrayInterval == 0
+
+        // Fill remaining slots with weighted random pieces (or a power-up)
+        for i in 1..<GameConstants.piecesPerTray {
+            if includePowerUp && i == 1 {
+                pieces.append(createPowerUpPiece())
+            } else {
+                let template = randomTemplate()
+                pieces.append(pieceFromTemplate(template))
+            }
         }
 
         return shuffled(pieces)
@@ -111,6 +124,22 @@ final class PieceGenerator {
             color = BlockColor.allCases.randomElement()!
         }
         return Piece(cells: template.cells, color: color)
+    }
+
+    /// Create a single-cell power-up piece with a random power-up type.
+    private func createPowerUpPiece() -> Piece {
+        let powerUp: PowerUpType
+        let color: BlockColor
+        if var rng = seededRNG {
+            powerUp = PowerUpType.allCases.randomElement(using: &rng)!
+            color = BlockColor.allCases.randomElement(using: &rng)!
+            seededRNG = rng
+        } else {
+            powerUp = PowerUpType.allCases.randomElement()!
+            color = BlockColor.allCases.randomElement()!
+        }
+        // Power-up pieces are always single-cell
+        return Piece(cells: [GridPosition(row: 0, col: 0)], color: color, powerUp: powerUp)
     }
 
     /// Shuffle using the seeded RNG when set, otherwise system random.

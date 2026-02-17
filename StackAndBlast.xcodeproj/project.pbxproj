@@ -112,6 +112,7 @@
 		CDD5466C591FCD437983192F /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
 		D2B75ECC7A71F4C7AE9112DC /* PieceDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PieceDefinitions.swift; sourceTree = "<group>"; };
 		D4622D61C74A621F8FA0872F /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
+		D66B5F8606ABF82EA1E69559 /* StackAndBlast.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StackAndBlast.entitlements; sourceTree = "<group>"; };
 		D701CD40CA0CA21B6CF5E9AF /* LeaderboardManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardManager.swift; sourceTree = "<group>"; };
 		D99EFBCD94DFC012B5E70FBA /* CoreHaptics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreHaptics.framework; path = System/Library/Frameworks/CoreHaptics.framework; sourceTree = SDKROOT; };
 		DC0F75865A72843A7CC5E513 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -247,6 +248,7 @@
 				DC0F75865A72843A7CC5E513 /* GoogleService-Info.plist */,
 				696D58F30639E0747C85E5A6 /* Info.plist */,
 				F3F2C921DEC6745D5B879C3B /* PrivacyInfo.xcprivacy */,
+				D66B5F8606ABF82EA1E69559 /* StackAndBlast.entitlements */,
 				1AD5D6F109FFEBC0F1CDEC40 /* App */,
 				4B5AF05769FB0298EE3DBB8F /* Engine */,
 				BB3181D54C2DC477C4B96BD4 /* Extensions */,
@@ -565,6 +567,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StackAndBlast/StackAndBlast.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = StackAndBlast/Info.plist;
@@ -587,6 +590,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = StackAndBlast/StackAndBlast.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = StackAndBlast/Info.plist;

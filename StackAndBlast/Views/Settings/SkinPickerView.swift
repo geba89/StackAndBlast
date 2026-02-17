@@ -100,128 +100,126 @@ private struct SkinCard: View {
     }
 
     var body: some View {
-        Button(action: {
-            if isUnlocked { onSelect() }
-        }) {
-            VStack(spacing: 8) {
-                // Skin name + animated badge
-                HStack(spacing: 6) {
-                    Text(skin.name)
-                        .font(.system(.headline, design: .rounded))
-                        .fontWeight(.bold)
-                        .foregroundStyle(isUnlocked ? .white : .gray)
+        VStack(spacing: 8) {
+            // Skin name + animated badge
+            HStack(spacing: 6) {
+                Text(skin.name)
+                    .font(.system(.headline, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundStyle(isUnlocked ? .white : .gray)
 
-                    if skin.animationType != nil {
-                        Text("ANIMATED")
-                            .font(.system(size: 8, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.purple, Color.blue],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                in: Capsule()
-                            )
-                    }
-                }
-
-                // 6-color palette preview
-                HStack(spacing: 4) {
-                    ForEach(BlockColor.allCases, id: \.rawValue) { color in
-                        Circle()
-                            .fill(Color(uiColor: skin.colors[color] ?? color.uiColor))
-                            .frame(width: 20, height: 20)
-                    }
-                }
-
-                // Lock/unlock/buy status
-                if !isUnlocked {
-                    if let productID = iapProductID,
-                       let product = StoreManager.shared.product(for: productID) {
-                        // Can buy via IAP
-                        Button {
-                            Task { await StoreManager.shared.purchase(product) }
-                        } label: {
-                            Text("Buy \(product.displayPrice)")
-                                .font(.system(.caption, design: .rounded))
-                                .fontWeight(.bold)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color(red: 0.424, green: 0.361, blue: 0.906), in: Capsule())
-                        }
-                    } else if let price = skin.coinPrice {
-                        // Can buy with coins
-                        Button {
-                            if SkinManager.shared.purchaseSkin(skin.id) {
-                                onCoinPurchase()
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "bitcoinsign.circle.fill")
-                                    .font(.caption)
-                                Text("\(price)")
-                                    .font(.system(.caption, design: .rounded))
-                                    .fontWeight(.bold)
-                            }
-                            .foregroundStyle(.yellow)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Color.yellow.opacity(
-                                    CoinManager.shared.canAfford(price) ? 0.15 : 0.05
-                                ),
-                                in: Capsule()
-                            )
-                            .overlay(
-                                Capsule()
-                                    .strokeBorder(Color.yellow.opacity(0.3), lineWidth: 1)
-                            )
-                        }
-                        .disabled(!CoinManager.shared.canAfford(price))
-                        .opacity(CoinManager.shared.canAfford(price) ? 1.0 : 0.5)
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "lock.fill")
-                                .font(.caption2)
-                            Text(skin.unlockCondition)
-                                .font(.system(.caption2, design: .rounded))
-                        }
-                        .foregroundStyle(.gray)
-                    }
-                } else if isActive {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                        Text("Active")
-                            .font(.system(.caption, design: .rounded))
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundStyle(Color(red: 0.0, green: 0.722, blue: 0.580))
-                } else {
-                    Text("Tap to select")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.5))
+                if skin.animationType != nil {
+                    Text("ANIMATED")
+                        .font(.system(size: 8, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.purple, Color.blue],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            in: Capsule()
+                        )
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(isActive ? 0.1 : 0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(
-                                isActive ? Color(red: 0.0, green: 0.722, blue: 0.580) : Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
-            .opacity(isUnlocked ? 1.0 : 0.6)
+
+            // 6-color palette preview
+            HStack(spacing: 4) {
+                ForEach(BlockColor.allCases, id: \.rawValue) { color in
+                    Circle()
+                        .fill(Color(uiColor: skin.colors[color] ?? color.uiColor))
+                        .frame(width: 20, height: 20)
+                }
+            }
+
+            // Lock/unlock/buy status
+            if !isUnlocked {
+                if let productID = iapProductID,
+                   let product = StoreManager.shared.product(for: productID) {
+                    // Can buy via IAP
+                    Button {
+                        Task { await StoreManager.shared.purchase(product) }
+                    } label: {
+                        Text("Buy \(product.displayPrice)")
+                            .font(.system(.caption, design: .rounded))
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(red: 0.424, green: 0.361, blue: 0.906), in: Capsule())
+                    }
+                } else if let price = skin.coinPrice {
+                    // Can buy with coins
+                    Button {
+                        if SkinManager.shared.purchaseSkin(skin.id) {
+                            onCoinPurchase()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bitcoinsign.circle.fill")
+                                .font(.caption)
+                            Text("\(price)")
+                                .font(.system(.caption, design: .rounded))
+                                .fontWeight(.bold)
+                        }
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Color.yellow.opacity(
+                                CoinManager.shared.canAfford(price) ? 0.15 : 0.05
+                            ),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(Color.yellow.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .disabled(!CoinManager.shared.canAfford(price))
+                    .opacity(CoinManager.shared.canAfford(price) ? 1.0 : 0.5)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.fill")
+                            .font(.caption2)
+                        Text(skin.unlockCondition)
+                            .font(.system(.caption2, design: .rounded))
+                    }
+                    .foregroundStyle(.gray)
+                }
+            } else if isActive {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                    Text("Active")
+                        .font(.system(.caption, design: .rounded))
+                        .fontWeight(.semibold)
+                }
+                .foregroundStyle(Color(red: 0.0, green: 0.722, blue: 0.580))
+            } else {
+                Text("Tap to select")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
         }
-        .disabled(!isUnlocked)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(isActive ? 0.1 : 0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(
+                            isActive ? Color(red: 0.0, green: 0.722, blue: 0.580) : Color.clear,
+                            lineWidth: 2
+                        )
+                )
+        )
+        .opacity(isUnlocked ? 1.0 : 0.6)
+        .onTapGesture {
+            if isUnlocked { onSelect() }
+        }
     }
 }

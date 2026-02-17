@@ -34,20 +34,22 @@ final class LeaderboardManager: NSObject {
 
             if let error {
                 print("[LeaderboardManager] Auth failed: \(error.localizedDescription)")
-                self.isAuthenticated = false
+                DispatchQueue.main.async { self.isAuthenticated = false }
                 return
             }
 
             if let vc = viewController {
-                // GameKit wants to present a sign-in view controller
-                self.presentViewController(vc)
+                DispatchQueue.main.async { self.presentViewController(vc) }
                 return
             }
 
-            // Successfully authenticated
-            self.isAuthenticated = GKLocalPlayer.local.isAuthenticated
-            if self.isAuthenticated {
-                print("[LeaderboardManager] Authenticated as \(GKLocalPlayer.local.displayName)")
+            // Successfully authenticated — update on main thread so SwiftUI observes the change
+            let authenticated = GKLocalPlayer.local.isAuthenticated
+            DispatchQueue.main.async {
+                self.isAuthenticated = authenticated
+                if authenticated {
+                    print("[LeaderboardManager] Authenticated as \(GKLocalPlayer.local.displayName)")
+                }
             }
         }
     }

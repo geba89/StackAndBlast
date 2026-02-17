@@ -57,8 +57,8 @@ enum GameConstants {
 
     // MARK: - Power-Ups
 
-    /// A power-up spawns on the grid every N pieces placed.
-    static let powerUpSpawnInterval = 8
+    /// A power-up piece appears in the tray every N tray generations.
+    static let powerUpTrayInterval = 3
 
     // MARK: - Coin Power-Ups
 

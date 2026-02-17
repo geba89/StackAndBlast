@@ -104,6 +104,11 @@ final class GameEngine {
     func placePiece(_ piece: Piece, at origin: GridPosition) -> PlacementResult {
         guard state == .playing else { return .failed }
 
+        // Power-up pieces trigger their effect immediately instead of placing blocks
+        if let powerUp = piece.powerUp {
+            return activatePowerUp(powerUp, piece: piece, at: origin)
+        }
+
         let positions = piece.absolutePositions(at: origin)
 
         // Validate: all positions must be in-bounds and empty
@@ -118,11 +123,6 @@ final class GameEngine {
 
         score += piece.cellCount * GameConstants.pointsPerCell
         piecesPlaced += 1
-
-        // Spawn a power-up every N pieces placed
-        if piecesPlaced % GameConstants.powerUpSpawnInterval == 0 {
-            spawnRandomPowerUp()
-        }
 
         // Remove the placed piece from the tray
         tray.removeAll { $0.id == piece.id }
@@ -277,6 +277,10 @@ final class GameEngine {
 
     /// Check if a piece can be placed at a given origin.
     func canPlace(_ piece: Piece, at origin: GridPosition) -> Bool {
+        // Power-up pieces can be placed on any valid cell (they trigger instead of placing blocks)
+        if piece.isPowerUp {
+            return origin.isValid
+        }
         let positions = piece.absolutePositions(at: origin)
         return positions.allSatisfy { $0.isValid && grid[$0.row][$0.col] == nil }
     }
@@ -301,24 +305,13 @@ final class GameEngine {
             let events = blastResolver.resolve(grid: &grid, cascadeLevel: cascadeLevel, minGroupSize: minGroupSize)
             if events.isEmpty { break }
 
-            // Score the blasts and apply power-up effects
-            var powerUpEvents: [BlastEvent] = []
             for event in events {
                 let blastScore = calculateBlastScore(event: event, cascadeLevel: cascadeLevel)
                 score += blastScore
                 totalBlasts += 1
-
-                // Apply any triggered power-up effects and collect their clear events
-                for pu in event.triggeredPowerUps {
-                    if let puEvent = applyPowerUpEffect(pu.type, at: pu.position, color: pu.color, cascadeLevel: cascadeLevel) {
-                        powerUpEvents.append(puEvent)
-                    }
-                }
             }
 
             allEvents.append(contentsOf: events)
-            // Power-up clear events come after the blast events at this cascade level
-            allEvents.append(contentsOf: powerUpEvents)
             cascadeLevel += 1
         }
 
@@ -350,45 +343,41 @@ final class GameEngine {
 
     // MARK: - Power-Ups
 
-    /// Place a random power-up block at a random empty cell on the grid.
-    private func spawnRandomPowerUp() {
-        // Collect all empty positions
-        var emptyPositions: [GridPosition] = []
-        for row in 0..<GameConstants.gridSize {
-            for col in 0..<GameConstants.gridSize {
-                if grid[row][col] == nil {
-                    emptyPositions.append(GridPosition(row: row, col: col))
-                }
-            }
-        }
+    /// Activate a power-up piece at the given grid position.
+    /// Triggers the effect immediately and returns a PlacementResult for animation.
+    private func activatePowerUp(_ type: PowerUpType, piece: Piece, at origin: GridPosition) -> PlacementResult {
+        // Power-up pieces only need the origin cell to be valid
+        guard origin.isValid else { return .failed }
 
-        guard let pos = emptyPositions.randomElement() else { return }
-        let color = BlockColor.allCases.randomElement()!
-        let powerUp = PowerUpType.allCases.randomElement()!
-        grid[pos.row][pos.col] = Block(color: color, position: pos, powerUp: powerUp)
-    }
+        piecesPlaced += 1
 
-    /// Apply a power-up effect: clear cells based on the power-up type.
-    /// Returns a BlastEvent describing which blocks were cleared (for animation),
-    /// or nil if no blocks were actually cleared.
-    private func applyPowerUpEffect(_ type: PowerUpType, at position: GridPosition, color: BlockColor, cascadeLevel: Int) -> BlastEvent? {
+        // Remove the power-up piece from the tray
+        tray.removeAll { $0.id == piece.id }
+
+        // Snapshot the grid BEFORE power-up effect (for animation diffing)
+        let preBlastGrid = grid
+
+        // Apply the power-up effect
         var clearedPositions: [GridPosition] = []
         var clearedBlockIDs: [UUID] = []
-        var effectColor = color
+        var effectColor: BlockColor = .coral
 
         switch type {
         case .colorBomb:
-            // Pick a random OTHER color present on the grid → remove all blocks of that color
-            var colorsOnGrid = Set<BlockColor>()
+            // Find the most common color on the grid and clear all blocks of that color
+            var colorCounts: [BlockColor: Int] = [:]
             for row in 0..<GameConstants.gridSize {
                 for col in 0..<GameConstants.gridSize {
                     if let block = grid[row][col] {
-                        colorsOnGrid.insert(block.color)
+                        colorCounts[block.color, default: 0] += 1
                     }
                 }
             }
-            colorsOnGrid.remove(color)
-            guard let targetColor = colorsOnGrid.randomElement() else { return nil }
+            guard let targetColor = colorCounts.max(by: { $0.value < $1.value })?.key else {
+                // No blocks on the grid — still consume the piece
+                if tray.isEmpty { tray = pieceGenerator.generateTray() }
+                return PlacementResult(success: true, blastEvents: [], preBlastGrid: nil, gameOver: false)
+            }
             effectColor = targetColor
             for row in 0..<GameConstants.gridSize {
                 for col in 0..<GameConstants.gridSize {
@@ -402,34 +391,69 @@ final class GameEngine {
 
         case .rowBlast:
             for col in 0..<GameConstants.gridSize {
-                if let block = grid[position.row][col] {
-                    clearedPositions.append(GridPosition(row: position.row, col: col))
+                if let block = grid[origin.row][col] {
+                    clearedPositions.append(GridPosition(row: origin.row, col: col))
                     clearedBlockIDs.append(block.id)
-                    grid[position.row][col] = nil
+                    grid[origin.row][col] = nil
                 }
             }
 
         case .columnBlast:
             for row in 0..<GameConstants.gridSize {
-                if let block = grid[row][position.col] {
-                    clearedPositions.append(GridPosition(row: row, col: position.col))
+                if let block = grid[row][origin.col] {
+                    clearedPositions.append(GridPosition(row: row, col: origin.col))
                     clearedBlockIDs.append(block.id)
-                    grid[row][position.col] = nil
+                    grid[row][origin.col] = nil
                 }
             }
         }
 
-        guard !clearedPositions.isEmpty else { return nil }
+        // Score the power-up clear
+        let clearScore = clearedPositions.count * GameConstants.baseBlastScore
+        score += clearScore
+        if !clearedPositions.isEmpty { totalBlasts += 1 }
 
-        return BlastEvent(
-            clearedPositions: clearedPositions,
-            clearedBlockIDs: clearedBlockIDs,
-            groupColor: effectColor,
-            cascadeLevel: cascadeLevel,
-            pushedBlocks: [],
-            triggeredPowerUps: [],
-            powerUpSource: type,
-            powerUpOrigin: position
+        var allEvents: [BlastEvent] = []
+
+        if !clearedPositions.isEmpty {
+            allEvents.append(BlastEvent(
+                clearedPositions: clearedPositions,
+                clearedBlockIDs: clearedBlockIDs,
+                groupColor: effectColor,
+                cascadeLevel: 0,
+                pushedBlocks: [],
+                triggeredPowerUps: [],
+                powerUpSource: type,
+                powerUpOrigin: origin
+            ))
+        }
+
+        // Resolve any cascading blasts caused by the power-up clear
+        let cascadeEvents = resolveBlasts()
+        if !cascadeEvents.isEmpty {
+            maxCombo = max(maxCombo, cascadeEvents.count)
+        }
+        allEvents.append(contentsOf: cascadeEvents)
+
+        // Refill tray if empty
+        if tray.isEmpty {
+            tray = pieceGenerator.generateTray()
+        }
+
+        // Check for game over
+        let isGameOver: Bool
+        if !canPlaceAnyPiece() {
+            state = .gameOver
+            isGameOver = true
+        } else {
+            isGameOver = false
+        }
+
+        return PlacementResult(
+            success: true,
+            blastEvents: allEvents,
+            preBlastGrid: allEvents.isEmpty ? nil : preBlastGrid,
+            gameOver: isGameOver
         )
     }
 }
