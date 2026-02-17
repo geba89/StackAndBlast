@@ -113,6 +113,9 @@ final class GameScene: SKScene {
 
         setupTrayBackground()
 
+        // Start ambient particles for animated skins
+        startAmbientParticles()
+
         // Push current engine state if ViewModel is already wired
         // (handles race between didMove, .onAppear, and .onChange ordering)
         if let vm = viewModel {
@@ -315,8 +318,7 @@ final class GameScene: SKScene {
     }
 
     /// Apply a continuous animation effect to a block node for animated skins.
-    /// Each animation type uses multi-property changes (fill, stroke, scale, glow)
-    /// for a premium visual feel.
+    /// Only modifies fill/stroke color — scene-level ambient particles are handled separately.
     private func applySkinAnimation(to node: SKShapeNode, blockColor: BlockColor, type: SkinAnimationType) {
         let baseColor = SkinManager.shared.colorForBlock(blockColor)
         let darkColor = SkinManager.shared.darkColorForBlock(blockColor)
@@ -330,278 +332,276 @@ final class GameScene: SKScene {
 
         switch type {
         case .shimmer:
-            // Frost shimmer: brightness wave + stroke glow + gentle scale pulse
-            // Creates an icy, crystalline light-catching effect
-            addGlowRing(to: node, color: baseColor, baseAlpha: 0.08, pulseRange: 0.04...0.15)
-
+            // Smooth brightness wave with secondary sparkle overlay
             let duration: TimeInterval = 2.0
             let shimmer = SKAction.customAction(withDuration: duration) { node, elapsed in
                 guard let shape = node as? SKShapeNode else { return }
                 let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
-                // Primary brightness wave
                 let briFactor = 0.85 + 0.2 * sin(t)
-                // Secondary faster sparkle overlay
                 let sparkle = 0.05 * sin(t * 3.7 + 1.2)
                 let newBri = min((bri * briFactor) + sparkle, 1.0)
                 shape.fillColor = UIColor(hue: hue, saturation: sat * (0.9 + 0.1 * sin(t * 0.5)), brightness: newBri, alpha: alpha)
-                // Stroke glows brighter when fill is bright
                 let strokeBri = min(dBri * (1.0 + 0.3 * sin(t)), 1.0)
                 shape.strokeColor = UIColor(hue: dHue, saturation: dSat, brightness: strokeBri, alpha: dAlpha)
-                // Gentle scale pulse
-                let scale = 1.0 + 0.02 * sin(t * 0.5)
-                shape.setScale(scale)
             }
             node.run(SKAction.repeatForever(shimmer), withKey: "skinAnim")
 
-            // Periodic sparkle particles — tiny bright flashes on the block
-            spawnBlockParticles(on: node, style: .frost)
-
         case .colorShift:
-            // Rainbow wave: wide hue sweep + saturation pump + scale bounce
-            // Creates an iridescent, holographic look
-            addGlowRing(to: node, color: baseColor, baseAlpha: 0.1, pulseRange: 0.05...0.2)
-
-            let duration: TimeInterval = 5.0
+            // Gentle iridescent sheen — hue shifts ±8% so colors stay recognizable
+            let duration: TimeInterval = 4.0
             let shift = SKAction.customAction(withDuration: duration) { node, elapsed in
                 guard let shape = node as? SKShapeNode else { return }
-                let t = (elapsed / CGFloat(duration)) + CGFloat(phaseOffset / (.pi * 2))
-                // Wide hue sweep (40% of spectrum)
-                let newHue = (hue + t * 0.4).truncatingRemainder(dividingBy: 1.0)
-                // Saturation modulation for depth
-                let newSat = sat * (0.85 + 0.15 * sin(t * .pi * 2))
-                // Subtle brightness shimmer
-                let newBri = min(bri * (0.95 + 0.08 * sin(t * .pi * 4)), 1.0)
+                let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
+                // Small oscillating hue shift (±0.08) keeps colors distinguishable
+                let hueShift = 0.08 * sin(t)
+                let newHue = (hue + hueShift).truncatingRemainder(dividingBy: 1.0)
+                let newSat = sat * (0.9 + 0.1 * sin(t * 1.5))
+                let newBri = min(bri * (0.92 + 0.12 * sin(t * 0.7)), 1.0)
                 shape.fillColor = UIColor(hue: newHue, saturation: newSat, brightness: newBri, alpha: alpha)
-                // Stroke follows with deeper color
-                shape.strokeColor = UIColor(hue: newHue, saturation: min(newSat * 1.2, 1.0), brightness: newBri * 0.7, alpha: dAlpha)
-                // Micro-scale pulse on each hue cycle
-                let scale = 1.0 + 0.015 * sin(t * .pi * 2)
-                shape.setScale(scale)
+                shape.strokeColor = UIColor(hue: newHue, saturation: min(newSat * 1.1, 1.0), brightness: newBri * 0.7, alpha: dAlpha)
             }
             node.run(SKAction.repeatForever(shift), withKey: "skinAnim")
 
-            // Rainbow sparkle particles
-            spawnBlockParticles(on: node, style: .rainbow)
-
         case .ember:
-            // Fire flicker: chaotic multi-frequency brightness + warm hue drift
-            // Uses overlapping sine waves at different frequencies for organic fire feel
-            addGlowRing(to: node, color: UIColor(red: 1.0, green: 0.4, blue: 0.1, alpha: 1), baseAlpha: 0.12, pulseRange: 0.06...0.25)
-
+            // Chaotic multi-frequency fire flicker + warm hue drift
             let duration: TimeInterval = 3.0
-            // Secondary frequency ratios for chaotic look
             let freq2 = CGFloat.random(in: 2.3...3.1)
             let freq3 = CGFloat.random(in: 4.5...6.0)
             let ember = SKAction.customAction(withDuration: duration) { node, elapsed in
                 guard let shape = node as? SKShapeNode else { return }
                 let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
-                // Three overlapping sine waves create organic flickering
                 let flicker1 = sin(t)
                 let flicker2 = 0.4 * sin(t * freq2 + 0.8)
                 let flicker3 = 0.2 * sin(t * freq3 + 2.1)
-                let combined = (flicker1 + flicker2 + flicker3) / 1.6 // Normalize to ~[-1, 1]
-                let briFactor = 0.8 + 0.25 * combined
-                let newBri = min(bri * briFactor, 1.0)
-                // Hue drifts warmer (toward orange/yellow) on bright peaks
+                let combined = (flicker1 + flicker2 + flicker3) / 1.6
+                let newBri = min(bri * (0.8 + 0.25 * combined), 1.0)
                 let hueDrift = 0.03 * max(combined, 0)
                 let newHue = (hue + hueDrift).truncatingRemainder(dividingBy: 1.0)
                 shape.fillColor = UIColor(hue: newHue, saturation: sat, brightness: newBri, alpha: alpha)
-                // Stroke pulses warm on flicker peaks
                 let strokeBri = min(dBri * (0.9 + 0.4 * max(combined, 0)), 1.0)
                 shape.strokeColor = UIColor(hue: min(dHue + 0.02, 1.0), saturation: dSat, brightness: strokeBri, alpha: dAlpha)
             }
             node.run(SKAction.repeatForever(ember), withKey: "skinAnim")
 
-            // Rising ember particles
-            spawnBlockParticles(on: node, style: .embers)
-
         case .neonPulse:
-            // Electric neon: pulsing glow ring + stroke width animation + flicker
-            // Creates a high-tech, cyberpunk electric feel
-            let glowRing = addGlowRing(to: node, color: baseColor, baseAlpha: 0.2, pulseRange: 0.1...0.45)
-
+            // Breathing stroke width + brightness pulse + random flicker
             let duration: TimeInterval = 2.5
             let neon = SKAction.customAction(withDuration: duration) { node, elapsed in
                 guard let shape = node as? SKShapeNode else { return }
                 let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
-                // Primary neon pulse
                 let pulse = 0.5 + 0.5 * sin(t)
-                // Stroke width breathes between thin and thick
-                shape.lineWidth = 1.0 + 2.5 * pulse
-                // Stroke color: brighter on pulse peaks
-                let strokeBri = min(dBri * (1.0 + 0.6 * pulse), 1.0)
-                let strokeSat = dSat * (0.8 + 0.2 * pulse)
-                shape.strokeColor = UIColor(hue: dHue, saturation: strokeSat, brightness: strokeBri, alpha: dAlpha)
-                // Fill stays mostly dark but brightens slightly with pulse
+                shape.lineWidth = 1.0 + 2.0 * pulse
+                let strokeBri = min(dBri * (1.0 + 0.5 * pulse), 1.0)
+                shape.strokeColor = UIColor(hue: dHue, saturation: dSat * (0.8 + 0.2 * pulse), brightness: strokeBri, alpha: dAlpha)
                 let fillBri = bri * (0.9 + 0.15 * pulse)
                 shape.fillColor = UIColor(hue: hue, saturation: sat, brightness: fillBri, alpha: alpha)
-                // Random micro-flicker (brief brightness spike ~10% of frames)
+                // Random micro-flicker
                 if CGFloat.random(in: 0...1) < 0.03 {
                     shape.fillColor = UIColor(hue: hue, saturation: sat * 0.5, brightness: min(bri * 1.6, 1.0), alpha: alpha)
                     shape.lineWidth = 4.0
                 }
             }
             node.run(SKAction.repeatForever(neon), withKey: "skinAnim")
-
-            // Glow ring follows neon pulse timing
-            let glowPulse = SKAction.customAction(withDuration: duration) { node, elapsed in
-                guard let shape = node as? SKShapeNode else { return }
-                let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
-                let pulse = 0.5 + 0.5 * sin(t)
-                shape.alpha = 0.1 + 0.35 * pulse
-                let glowScale = 1.08 + 0.04 * pulse
-                shape.setScale(glowScale)
-            }
-            glowRing.run(SKAction.repeatForever(glowPulse), withKey: "glowPulse")
-
-            // Electric spark particles
-            spawnBlockParticles(on: node, style: .sparks)
         }
     }
 
-    // MARK: - Block Glow Effects
+    // MARK: - Scene-Level Ambient Particles
 
-    /// Particle style for per-block ambient particles.
-    private enum BlockParticleStyle {
-        case frost     // Tiny white sparkles that fade in/out
-        case rainbow   // Color-cycling sparkle dots
-        case embers    // Rising warm particles that float up
-        case sparks    // Electric sparks that flash and vanish
-    }
+    /// Node layer for ambient skin particles (above grid, below blocks).
+    private var ambientParticleNode = SKNode()
 
-    /// Add a semi-transparent glow ring behind a block node for ambient light effect.
-    @discardableResult
-    private func addGlowRing(to node: SKShapeNode, color: UIColor, baseAlpha: CGFloat, pulseRange: ClosedRange<CGFloat>) -> SKShapeNode {
-        let inset: CGFloat = 1.5
-        let glowSize = CGSize(width: cellSize - inset * 2 + 6, height: cellSize - inset * 2 + 6)
-        let glow = SKShapeNode(rectOf: glowSize, cornerRadius: blockCornerRadius + 2)
-        glow.fillColor = color.withAlphaComponent(baseAlpha)
-        glow.strokeColor = .clear
-        glow.zPosition = -1
-        glow.name = "glowRing"
+    /// Starts the scene-level ambient particle emitter for the current animated skin.
+    /// Particles float across the grid area, creating atmosphere without cluttering blocks.
+    func startAmbientParticles() {
+        stopAmbientParticles()
 
-        // Default gentle pulse (can be overridden by neonPulse's custom action)
-        let pulse = SKAction.sequence([
-            SKAction.fadeAlpha(to: pulseRange.upperBound, duration: CGFloat.random(in: 0.8...1.4)),
-            SKAction.fadeAlpha(to: pulseRange.lowerBound, duration: CGFloat.random(in: 0.8...1.4))
-        ])
-        glow.run(SKAction.repeatForever(pulse), withKey: "glowPulse")
+        guard let animType = SkinManager.shared.activeSkin.animationType else { return }
 
-        node.addChild(glow)
-        return glow
-    }
+        ambientParticleNode = SKNode()
+        ambientParticleNode.zPosition = 0.5 // Between grid (0) and blocks (1)
+        addChild(ambientParticleNode)
 
-    /// Spawn periodic ambient particles on a block node.
-    /// Particles are lightweight child nodes that auto-remove.
-    private func spawnBlockParticles(on node: SKShapeNode, style: BlockParticleStyle) {
-        let spawnAction = SKAction.run { [weak node] in
-            guard let node = node, node.parent != nil else { return }
-            let halfSize = (node.frame.width * 0.3)
+        let gridWidth = cellSize * CGFloat(GameConstants.gridSize)
+        let gridHeight = cellSize * CGFloat(GameConstants.gridSize)
+        let gridCenterX = gridOrigin.x + gridWidth / 2
+        let gridCenterY = gridOrigin.y - gridHeight / 2
 
-            switch style {
-            case .frost:
-                // Tiny bright white sparkle that fades in then out
-                let size: CGFloat = CGFloat.random(in: 1.5...3.0)
-                let sparkle = SKShapeNode(circleOfRadius: size)
-                sparkle.fillColor = UIColor.white.withAlphaComponent(0.0)
-                sparkle.strokeColor = .clear
-                sparkle.position = CGPoint(
-                    x: CGFloat.random(in: -halfSize...halfSize),
-                    y: CGFloat.random(in: -halfSize...halfSize)
+        switch animType {
+        case .shimmer:
+            // Floating ice crystals / snowflakes drifting slowly downward
+            let spawn = SKAction.run { [weak self] in
+                guard let self = self, self.ambientParticleNode.parent != nil else { return }
+                let size = CGFloat.random(in: 2...5)
+                let crystal = SKShapeNode(rectOf: CGSize(width: size, height: size), cornerRadius: size * 0.3)
+                crystal.fillColor = UIColor.white.withAlphaComponent(CGFloat.random(in: 0.3...0.6))
+                crystal.strokeColor = UIColor(white: 1.0, alpha: 0.15)
+                crystal.lineWidth = 0.5
+                crystal.position = CGPoint(
+                    x: gridCenterX + CGFloat.random(in: -gridWidth * 0.55...gridWidth * 0.55),
+                    y: gridCenterY + gridHeight * 0.55
                 )
-                sparkle.zPosition = 3
-                node.addChild(sparkle)
-                sparkle.run(SKAction.sequence([
-                    SKAction.fadeAlpha(to: CGFloat.random(in: 0.6...1.0), duration: 0.15),
-                    SKAction.wait(forDuration: CGFloat.random(in: 0.1...0.2)),
-                    SKAction.fadeOut(withDuration: 0.2),
-                    SKAction.removeFromParent()
-                ]))
+                self.ambientParticleNode.addChild(crystal)
 
-            case .rainbow:
-                // Color-cycling dot
-                let size: CGFloat = CGFloat.random(in: 1.5...2.5)
-                let dot = SKShapeNode(circleOfRadius: size)
-                let randomHue = CGFloat.random(in: 0...1)
-                dot.fillColor = UIColor(hue: randomHue, saturation: 1.0, brightness: 1.0, alpha: 0.8)
-                dot.strokeColor = .clear
-                dot.position = CGPoint(
-                    x: CGFloat.random(in: -halfSize...halfSize),
-                    y: CGFloat.random(in: -halfSize...halfSize)
+                let fallDuration = Double.random(in: 3.0...5.0)
+                let drift = CGFloat.random(in: -30...30)
+                let wobble = SKAction.customAction(withDuration: fallDuration) { node, elapsed in
+                    let progress = elapsed / CGFloat(fallDuration)
+                    node.position.x += sin(progress * .pi * 4 + CGFloat.random(in: 0...0.1)) * 0.3
+                    node.zRotation = progress * .pi * 2
+                }
+                crystal.run(SKAction.group([
+                    SKAction.moveBy(x: drift, y: -gridHeight * 1.1, duration: fallDuration),
+                    SKAction.fadeOut(withDuration: fallDuration),
+                    wobble
+                ])) { crystal.removeFromParent() }
+            }
+            let loop = SKAction.sequence([
+                SKAction.wait(forDuration: 0.15, withRange: 0.1),
+                spawn
+            ])
+            ambientParticleNode.run(SKAction.repeatForever(loop), withKey: "ambientSpawn")
+
+        case .colorShift:
+            // Drifting rainbow motes that float upward and shimmer
+            let spawn = SKAction.run { [weak self] in
+                guard let self = self, self.ambientParticleNode.parent != nil else { return }
+                let size = CGFloat.random(in: 2.5...5)
+                let mote = SKShapeNode(circleOfRadius: size)
+                let hue = CGFloat.random(in: 0...1)
+                mote.fillColor = UIColor(hue: hue, saturation: 0.9, brightness: 1.0, alpha: CGFloat.random(in: 0.2...0.5))
+                mote.strokeColor = .clear
+                mote.position = CGPoint(
+                    x: gridCenterX + CGFloat.random(in: -gridWidth * 0.55...gridWidth * 0.55),
+                    y: gridCenterY - gridHeight * 0.55
                 )
-                dot.zPosition = 3
-                node.addChild(dot)
-                let lifetime = CGFloat.random(in: 0.3...0.5)
-                dot.run(SKAction.sequence([
-                    SKAction.group([
-                        SKAction.fadeOut(withDuration: lifetime),
-                        SKAction.scale(to: 0.3, duration: lifetime),
-                        SKAction.moveBy(x: CGFloat.random(in: -3...3), y: CGFloat.random(in: -3...3), duration: lifetime)
-                    ]),
-                    SKAction.removeFromParent()
-                ]))
+                self.ambientParticleNode.addChild(mote)
 
-            case .embers:
-                // Small warm particle that rises and fades
-                let size: CGFloat = CGFloat.random(in: 1.5...3.0)
+                let riseDuration = Double.random(in: 3.5...6.0)
+                let drift = CGFloat.random(in: -40...40)
+                // Hue cycles during rise
+                let colorCycle = SKAction.customAction(withDuration: riseDuration) { node, elapsed in
+                    guard let shape = node as? SKShapeNode else { return }
+                    let progress = elapsed / CGFloat(riseDuration)
+                    let newHue = (hue + progress * 0.5).truncatingRemainder(dividingBy: 1.0)
+                    shape.fillColor = UIColor(hue: newHue, saturation: 0.9, brightness: 1.0, alpha: max(0, 0.4 - progress * 0.4))
+                }
+                mote.run(SKAction.group([
+                    SKAction.moveBy(x: drift, y: gridHeight * 1.1, duration: riseDuration),
+                    SKAction.scale(to: 0.3, duration: riseDuration),
+                    colorCycle
+                ])) { mote.removeFromParent() }
+            }
+            let loop = SKAction.sequence([
+                SKAction.wait(forDuration: 0.12, withRange: 0.08),
+                spawn
+            ])
+            ambientParticleNode.run(SKAction.repeatForever(loop), withKey: "ambientSpawn")
+
+        case .ember:
+            // Fire embers rising from the grid — warm particles with flickering glow
+            let spawn = SKAction.run { [weak self] in
+                guard let self = self, self.ambientParticleNode.parent != nil else { return }
+                let size = CGFloat.random(in: 2...6)
                 let ember = SKShapeNode(circleOfRadius: size)
-                let warmHue = CGFloat.random(in: 0.02...0.12) // Red to orange-yellow
-                ember.fillColor = UIColor(hue: warmHue, saturation: 0.9, brightness: 1.0, alpha: 0.9)
-                ember.strokeColor = .clear
+                let warmHue = CGFloat.random(in: 0.0...0.12)
+                let brightness = CGFloat.random(in: 0.8...1.0)
+                ember.fillColor = UIColor(hue: warmHue, saturation: 0.95, brightness: brightness, alpha: CGFloat.random(in: 0.4...0.8))
+                ember.strokeColor = UIColor(hue: warmHue, saturation: 0.6, brightness: 1.0, alpha: 0.2)
+                ember.lineWidth = 1.0
                 ember.position = CGPoint(
-                    x: CGFloat.random(in: -halfSize...halfSize),
-                    y: -halfSize + CGFloat.random(in: 0...halfSize * 0.5)
+                    x: gridCenterX + CGFloat.random(in: -gridWidth * 0.55...gridWidth * 0.55),
+                    y: gridCenterY - gridHeight * 0.55
                 )
-                ember.zPosition = 3
-                node.addChild(ember)
-                let riseHeight = CGFloat.random(in: 8...18)
-                let lifetime = CGFloat.random(in: 0.5...0.9)
-                ember.run(SKAction.sequence([
-                    SKAction.group([
-                        SKAction.moveBy(x: CGFloat.random(in: -4...4), y: riseHeight, duration: lifetime),
-                        SKAction.fadeOut(withDuration: lifetime),
-                        SKAction.scale(to: 0.2, duration: lifetime)
-                    ]),
-                    SKAction.removeFromParent()
-                ]))
+                self.ambientParticleNode.addChild(ember)
 
-            case .sparks:
-                // Electric spark: appears bright, flashes, vanishes quickly
-                let size: CGFloat = CGFloat.random(in: 1.0...2.5)
+                let riseDuration = Double.random(in: 2.0...4.0)
+                let drift = CGFloat.random(in: -50...50)
+                // Flickering brightness as it rises
+                let flicker = SKAction.customAction(withDuration: riseDuration) { node, elapsed in
+                    guard let shape = node as? SKShapeNode else { return }
+                    let progress = elapsed / CGFloat(riseDuration)
+                    let flickerVal = sin(progress * .pi * CGFloat.random(in: 6...12))
+                    let newAlpha = max(0, (0.7 - progress * 0.7) * (0.7 + 0.3 * flickerVal))
+                    shape.fillColor = UIColor(hue: warmHue, saturation: 0.95, brightness: brightness, alpha: newAlpha)
+                }
+                ember.run(SKAction.group([
+                    SKAction.moveBy(x: drift, y: gridHeight * 1.2, duration: riseDuration),
+                    SKAction.scale(to: 0.1, duration: riseDuration),
+                    flicker
+                ])) { ember.removeFromParent() }
+            }
+            let loop = SKAction.sequence([
+                SKAction.wait(forDuration: 0.08, withRange: 0.06),
+                spawn
+            ])
+            ambientParticleNode.run(SKAction.repeatForever(loop), withKey: "ambientSpawn")
+
+        case .neonPulse:
+            // Electric sparks that flash across the grid + horizontal scanlines
+            let sparkSpawn = SKAction.run { [weak self] in
+                guard let self = self, self.ambientParticleNode.parent != nil else { return }
+                let size = CGFloat.random(in: 1.5...3.5)
                 let spark = SKShapeNode(circleOfRadius: size)
-                spark.fillColor = UIColor.white
+                spark.fillColor = UIColor.white.withAlphaComponent(0.9)
                 spark.strokeColor = .clear
                 spark.position = CGPoint(
-                    x: CGFloat.random(in: -halfSize...halfSize),
-                    y: CGFloat.random(in: -halfSize...halfSize)
+                    x: gridCenterX + CGFloat.random(in: -gridWidth * 0.5...gridWidth * 0.5),
+                    y: gridCenterY + CGFloat.random(in: -gridHeight * 0.5...gridHeight * 0.5)
                 )
-                spark.zPosition = 3
-                spark.alpha = 0
-                node.addChild(spark)
+                self.ambientParticleNode.addChild(spark)
+
+                // Flash in, zip in random direction, vanish
+                let angle = CGFloat.random(in: 0...(.pi * 2))
+                let distance = CGFloat.random(in: 15...40)
+                let lifetime = Double.random(in: 0.1...0.25)
                 spark.run(SKAction.sequence([
-                    SKAction.fadeIn(withDuration: 0.02),
-                    SKAction.fadeAlpha(to: 0.3, duration: 0.05),
-                    SKAction.fadeIn(withDuration: 0.02),
-                    SKAction.fadeOut(withDuration: 0.08),
+                    SKAction.group([
+                        SKAction.moveBy(x: cos(angle) * distance, y: sin(angle) * distance, duration: lifetime),
+                        SKAction.sequence([
+                            SKAction.fadeAlpha(to: 1.0, duration: 0.02),
+                            SKAction.fadeOut(withDuration: lifetime - 0.02)
+                        ]),
+                        SKAction.scale(to: 0.1, duration: lifetime)
+                    ]),
                     SKAction.removeFromParent()
                 ]))
             }
-        }
+            let sparkLoop = SKAction.sequence([
+                SKAction.wait(forDuration: 0.08, withRange: 0.06),
+                sparkSpawn
+            ])
+            ambientParticleNode.run(SKAction.repeatForever(sparkLoop), withKey: "ambientSpawn")
 
-        // Spawn rate varies by particle style
-        let interval: TimeInterval
-        switch style {
-        case .frost:   interval = Double.random(in: 0.8...1.5)
-        case .rainbow: interval = Double.random(in: 0.5...1.0)
-        case .embers:  interval = Double.random(in: 0.3...0.7)
-        case .sparks:  interval = Double.random(in: 0.4...0.9)
+            // Horizontal scanline that sweeps across the grid periodically
+            let scanSpawn = SKAction.run { [weak self] in
+                guard let self = self, self.ambientParticleNode.parent != nil else { return }
+                let lineHeight: CGFloat = 1.5
+                let scanline = SKShapeNode(rectOf: CGSize(width: gridWidth * 1.1, height: lineHeight))
+                scanline.fillColor = UIColor.white.withAlphaComponent(0.08)
+                scanline.strokeColor = .clear
+                scanline.position = CGPoint(
+                    x: gridCenterX,
+                    y: gridCenterY + gridHeight * 0.55
+                )
+                self.ambientParticleNode.addChild(scanline)
+                scanline.run(SKAction.sequence([
+                    SKAction.moveBy(x: 0, y: -gridHeight * 1.1, duration: 1.2),
+                    SKAction.removeFromParent()
+                ]))
+            }
+            let scanLoop = SKAction.sequence([
+                SKAction.wait(forDuration: 2.5, withRange: 1.5),
+                scanSpawn
+            ])
+            ambientParticleNode.run(SKAction.repeatForever(scanLoop), withKey: "ambientScan")
         }
+    }
 
-        let spawnLoop = SKAction.sequence([
-            SKAction.wait(forDuration: interval, withRange: interval * 0.5),
-            spawnAction
-        ])
-        node.run(SKAction.repeatForever(spawnLoop), withKey: "blockParticles")
+    /// Stop and remove all ambient particles.
+    func stopAmbientParticles() {
+        ambientParticleNode.removeAllActions()
+        ambientParticleNode.removeAllChildren()
+        ambientParticleNode.removeFromParent()
     }
 
     // MARK: - Blast Animation System
@@ -1154,6 +1154,8 @@ final class GameScene: SKScene {
         // Re-create from engine state
         updateGrid(vm.engine.grid)
         updateTray(vm.engine.tray)
+        // Restart ambient particles for the new skin
+        startAmbientParticles()
     }
 
     // MARK: - Bomb State
@@ -1391,7 +1393,7 @@ final class GameScene: SKScene {
         // Spawn drag trail particles (throttled by distance to avoid particle spam)
         let dx = location.x - lastTrailPosition.x
         let dy = location.y - lastTrailPosition.y
-        if dx * dx + dy * dy > 16 { // ~4pt movement threshold
+        if dx * dx + dy * dy > 9 { // ~3pt movement threshold for denser trails
             lastTrailPosition = location
             spawnDragTrailParticle(at: dragNode.position, color: piece.color)
         }
@@ -1570,55 +1572,55 @@ final class GameScene: SKScene {
 
     /// Spawn skin-aware drag trail particles. Each animated skin gets a unique trail;
     /// static skins get the default color-matched particle trail.
+    /// All trails are long-lived and highly visible.
     private func spawnDragTrailParticle(at position: CGPoint, color: BlockColor) {
         let skin = SkinManager.shared.activeSkin
         let skinColor = SkinManager.shared.colorForBlock(color)
 
         switch skin.animationType {
         case .shimmer:
-            // Frost trail: white/light blue sparkles that twinkle and drift down
-            for _ in 0..<3 {
-                let size = CGFloat.random(in: 2.0...4.0)
-                let sparkle = SKShapeNode(circleOfRadius: size)
-                let iceHue = CGFloat.random(in: 0.55...0.62) // Light blue range
-                sparkle.fillColor = UIColor(hue: iceHue, saturation: 0.3, brightness: 1.0, alpha: 0.9)
-                sparkle.strokeColor = UIColor.white.withAlphaComponent(0.5)
+            // Frost trail: large bright ice crystals that drift downward slowly
+            for _ in 0..<4 {
+                let size = CGFloat.random(in: 4...8)
+                let sparkle = SKShapeNode(rectOf: CGSize(width: size, height: size), cornerRadius: size * 0.3)
+                let iceHue = CGFloat.random(in: 0.55...0.62)
+                sparkle.fillColor = UIColor(hue: iceHue, saturation: 0.3, brightness: 1.0, alpha: 1.0)
+                sparkle.strokeColor = UIColor.white.withAlphaComponent(0.6)
                 sparkle.lineWidth = 0.5
                 sparkle.position = CGPoint(
-                    x: position.x + CGFloat.random(in: -8...8),
-                    y: position.y + CGFloat.random(in: -6...6)
+                    x: position.x + CGFloat.random(in: -12...12),
+                    y: position.y + CGFloat.random(in: -8...8)
                 )
                 sparkle.zPosition = 9
                 addChild(sparkle)
-                let duration = CGFloat.random(in: 0.3...0.5)
+                let duration = CGFloat.random(in: 0.6...1.0)
                 sparkle.run(SKAction.group([
-                    SKAction.moveBy(x: CGFloat.random(in: -5...5), y: CGFloat.random(in: -15...(-5)), duration: duration),
-                    SKAction.sequence([
-                        SKAction.fadeAlpha(to: 1.0, duration: 0.05),
-                        SKAction.fadeOut(withDuration: duration - 0.05)
-                    ]),
-                    SKAction.scale(to: 0.1, duration: duration)
+                    SKAction.moveBy(x: CGFloat.random(in: -15...15), y: CGFloat.random(in: -35...(-15)), duration: duration),
+                    SKAction.fadeOut(withDuration: duration),
+                    SKAction.scale(to: 0.2, duration: duration),
+                    SKAction.rotate(byAngle: CGFloat.random(in: -2...2), duration: duration)
                 ])) { sparkle.removeFromParent() }
             }
 
         case .colorShift:
-            // Rainbow trail: color-cycling particles that spiral outward
-            for _ in 0..<3 {
-                let size = CGFloat.random(in: 2.0...3.5)
+            // Rainbow trail: vivid color dots that spiral outward and linger
+            for _ in 0..<5 {
+                let size = CGFloat.random(in: 4...7)
                 let dot = SKShapeNode(circleOfRadius: size)
                 let hue = CGFloat.random(in: 0...1)
-                dot.fillColor = UIColor(hue: hue, saturation: 1.0, brightness: 1.0, alpha: 0.85)
-                dot.strokeColor = .clear
+                dot.fillColor = UIColor(hue: hue, saturation: 1.0, brightness: 1.0, alpha: 0.9)
+                dot.strokeColor = UIColor(hue: hue, saturation: 0.8, brightness: 1.0, alpha: 0.4)
+                dot.lineWidth = 1.0
                 let angle = CGFloat.random(in: 0...(.pi * 2))
-                let spread: CGFloat = CGFloat.random(in: 3...8)
+                let spread: CGFloat = CGFloat.random(in: 4...10)
                 dot.position = CGPoint(
                     x: position.x + cos(angle) * spread,
                     y: position.y + sin(angle) * spread
                 )
                 dot.zPosition = 9
                 addChild(dot)
-                let duration = CGFloat.random(in: 0.25...0.4)
-                let outward = CGFloat.random(in: 8...16)
+                let duration = CGFloat.random(in: 0.6...1.0)
+                let outward = CGFloat.random(in: 20...40)
                 dot.run(SKAction.group([
                     SKAction.moveBy(x: cos(angle) * outward, y: sin(angle) * outward, duration: duration),
                     SKAction.fadeOut(withDuration: duration),
@@ -1627,51 +1629,50 @@ final class GameScene: SKScene {
             }
 
         case .ember:
-            // Ember trail: warm sparks that rise like campfire embers
-            for _ in 0..<3 {
-                let size = CGFloat.random(in: 2.0...4.5)
+            // Ember trail: large warm sparks that rise high like campfire embers
+            for _ in 0..<5 {
+                let size = CGFloat.random(in: 4...8)
                 let ember = SKShapeNode(circleOfRadius: size)
-                let warmHue = CGFloat.random(in: 0.02...0.12)
-                ember.fillColor = UIColor(hue: warmHue, saturation: 0.95, brightness: 1.0, alpha: 0.9)
-                ember.strokeColor = UIColor(hue: warmHue, saturation: 0.5, brightness: 1.0, alpha: 0.4)
-                ember.lineWidth = 0.5
+                let warmHue = CGFloat.random(in: 0.0...0.12)
+                ember.fillColor = UIColor(hue: warmHue, saturation: 0.95, brightness: 1.0, alpha: 1.0)
+                ember.strokeColor = UIColor(hue: warmHue, saturation: 0.5, brightness: 1.0, alpha: 0.5)
+                ember.lineWidth = 1.0
                 ember.position = CGPoint(
-                    x: position.x + CGFloat.random(in: -8...8),
-                    y: position.y + CGFloat.random(in: -4...4)
+                    x: position.x + CGFloat.random(in: -10...10),
+                    y: position.y + CGFloat.random(in: -6...6)
                 )
                 ember.zPosition = 9
                 addChild(ember)
-                let duration = CGFloat.random(in: 0.35...0.6)
-                let riseHeight = CGFloat.random(in: 12...25)
+                let duration = CGFloat.random(in: 0.7...1.2)
+                let riseHeight = CGFloat.random(in: 30...60)
                 ember.run(SKAction.group([
-                    SKAction.moveBy(x: CGFloat.random(in: -6...6), y: riseHeight, duration: duration),
+                    SKAction.moveBy(x: CGFloat.random(in: -15...15), y: riseHeight, duration: duration),
                     SKAction.fadeOut(withDuration: duration),
-                    SKAction.scale(to: 0.15, duration: duration)
+                    SKAction.scale(to: 0.1, duration: duration)
                 ])) { ember.removeFromParent() }
             }
 
         case .neonPulse:
-            // Electric trail: bright flashing sparks that zip outward and vanish
-            for _ in 0..<4 {
-                let size = CGFloat.random(in: 1.5...3.0)
+            // Electric trail: bright sparks that zip outward with long travel
+            for _ in 0..<6 {
+                let size = CGFloat.random(in: 3...6)
                 let spark = SKShapeNode(circleOfRadius: size)
-                spark.fillColor = .white
-                spark.strokeColor = skinColor.withAlphaComponent(0.6)
-                spark.lineWidth = 1.0
+                spark.fillColor = UIColor.white.withAlphaComponent(0.95)
+                spark.strokeColor = skinColor.withAlphaComponent(0.7)
+                spark.lineWidth = 1.5
                 let angle = CGFloat.random(in: 0...(.pi * 2))
                 spark.position = CGPoint(
-                    x: position.x + CGFloat.random(in: -4...4),
-                    y: position.y + CGFloat.random(in: -4...4)
+                    x: position.x + CGFloat.random(in: -6...6),
+                    y: position.y + CGFloat.random(in: -6...6)
                 )
                 spark.zPosition = 9
                 addChild(spark)
-                let duration = CGFloat.random(in: 0.12...0.25)
-                let distance = CGFloat.random(in: 10...22)
+                let duration = CGFloat.random(in: 0.3...0.6)
+                let distance = CGFloat.random(in: 25...50)
                 spark.run(SKAction.group([
                     SKAction.moveBy(x: cos(angle) * distance, y: sin(angle) * distance, duration: duration),
                     SKAction.sequence([
-                        SKAction.fadeAlpha(to: 0.4, duration: 0.03),
-                        SKAction.fadeIn(withDuration: 0.02),
+                        SKAction.wait(forDuration: 0.05),
                         SKAction.fadeOut(withDuration: duration - 0.05)
                     ]),
                     SKAction.scale(to: 0.1, duration: duration)
@@ -1679,27 +1680,27 @@ final class GameScene: SKScene {
             }
 
         case nil:
-            // Default: simple color-matched square particles
-            for _ in 0..<2 {
-                let size = CGFloat.random(in: 2.5...4.5)
-                let particle = SKShapeNode(rectOf: CGSize(width: size, height: size), cornerRadius: 1)
-                particle.fillColor = skinColor.withAlphaComponent(0.7)
+            // Default: color-matched particles, larger and longer than before
+            for _ in 0..<3 {
+                let size = CGFloat.random(in: 4...7)
+                let particle = SKShapeNode(rectOf: CGSize(width: size, height: size), cornerRadius: 2)
+                particle.fillColor = skinColor.withAlphaComponent(0.85)
                 particle.strokeColor = .clear
                 particle.position = CGPoint(
-                    x: position.x + CGFloat.random(in: -6...6),
-                    y: position.y + CGFloat.random(in: -6...6)
+                    x: position.x + CGFloat.random(in: -10...10),
+                    y: position.y + CGFloat.random(in: -8...8)
                 )
                 particle.zPosition = 9
                 addChild(particle)
-                let duration = CGFloat.random(in: 0.2...0.35)
-                let drift = SKAction.moveBy(x: CGFloat.random(in: -8...8),
-                                             y: CGFloat.random(in: -12...(-4)),
+                let duration = CGFloat.random(in: 0.5...0.8)
+                let drift = SKAction.moveBy(x: CGFloat.random(in: -15...15),
+                                             y: CGFloat.random(in: -25...(-10)),
                                              duration: duration)
                 drift.timingMode = .easeOut
                 particle.run(SKAction.group([
                     drift,
                     SKAction.fadeOut(withDuration: duration),
-                    SKAction.scale(to: 0.2, duration: duration)
+                    SKAction.scale(to: 0.15, duration: duration)
                 ])) { particle.removeFromParent() }
             }
         }
