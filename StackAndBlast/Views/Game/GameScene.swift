@@ -318,87 +318,109 @@ final class GameScene: SKScene {
     }
 
     /// Apply a continuous animation effect to a block node for animated skins.
-    /// Only modifies fill/stroke color — scene-level ambient particles are handled separately.
+    /// Block fillColor is NEVER modified — colors stay fully identifiable.
+    /// Animations use overlay child nodes, stroke effects, and the scene-level
+    /// ambient particles for visual interest.
     private func applySkinAnimation(to node: SKShapeNode, blockColor: BlockColor, type: SkinAnimationType) {
-        let baseColor = SkinManager.shared.colorForBlock(blockColor)
         let darkColor = SkinManager.shared.darkColorForBlock(blockColor)
-        var hue: CGFloat = 0, sat: CGFloat = 0, bri: CGFloat = 0, alpha: CGFloat = 0
-        baseColor.getHue(&hue, saturation: &sat, brightness: &bri, alpha: &alpha)
         var dHue: CGFloat = 0, dSat: CGFloat = 0, dBri: CGFloat = 0, dAlpha: CGFloat = 0
         darkColor.getHue(&dHue, saturation: &dSat, brightness: &dBri, alpha: &dAlpha)
 
-        // Randomize phase offset per block so they don't all animate in lockstep
         let phaseOffset = CGFloat.random(in: 0...(.pi * 2))
+        let inset: CGFloat = 1.5
+        let bSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
 
         switch type {
         case .shimmer:
-            // Smooth brightness wave with secondary sparkle overlay
+            // Icy glint: a white overlay that fades in/out periodically + stroke glow
+            let glint = SKShapeNode(rectOf: CGSize(width: bSize.width - 4, height: bSize.height - 4), cornerRadius: blockCornerRadius - 1)
+            glint.fillColor = UIColor.white.withAlphaComponent(0)
+            glint.strokeColor = .clear
+            glint.zPosition = 2
+            glint.name = "skinOverlay"
+            node.addChild(glint)
+
             let duration: TimeInterval = 2.0
-            let shimmer = SKAction.customAction(withDuration: duration) { node, elapsed in
-                guard let shape = node as? SKShapeNode else { return }
+            let anim = SKAction.customAction(withDuration: duration) { [weak glint] node, elapsed in
+                guard let shape = node as? SKShapeNode, let glint = glint else { return }
                 let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
-                let briFactor = 0.85 + 0.2 * sin(t)
-                let sparkle = 0.05 * sin(t * 3.7 + 1.2)
-                let newBri = min((bri * briFactor) + sparkle, 1.0)
-                shape.fillColor = UIColor(hue: hue, saturation: sat * (0.9 + 0.1 * sin(t * 0.5)), brightness: newBri, alpha: alpha)
+                // Glint overlay: peaks at 0.18 alpha, then fades
+                let glintAlpha = max(0, 0.18 * sin(t))
+                glint.fillColor = UIColor.white.withAlphaComponent(glintAlpha)
+                // Stroke brightness breathes
                 let strokeBri = min(dBri * (1.0 + 0.3 * sin(t)), 1.0)
                 shape.strokeColor = UIColor(hue: dHue, saturation: dSat, brightness: strokeBri, alpha: dAlpha)
             }
-            node.run(SKAction.repeatForever(shimmer), withKey: "skinAnim")
+            node.run(SKAction.repeatForever(anim), withKey: "skinAnim")
 
         case .colorShift:
-            // Gentle iridescent sheen — hue shifts ±8% so colors stay recognizable
+            // Holographic sheen: rainbow-tinted translucent overlay at low opacity
+            // Base block color stays untouched — the overlay adds a subtle color film
+            let sheen = SKShapeNode(rectOf: CGSize(width: bSize.width - 4, height: bSize.height - 4), cornerRadius: blockCornerRadius - 1)
+            sheen.fillColor = UIColor.clear
+            sheen.strokeColor = .clear
+            sheen.zPosition = 2
+            sheen.name = "skinOverlay"
+            node.addChild(sheen)
+
             let duration: TimeInterval = 4.0
-            let shift = SKAction.customAction(withDuration: duration) { node, elapsed in
-                guard let shape = node as? SKShapeNode else { return }
-                let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
-                // Small oscillating hue shift (±0.08) keeps colors distinguishable
-                let hueShift = 0.08 * sin(t)
-                let newHue = (hue + hueShift).truncatingRemainder(dividingBy: 1.0)
-                let newSat = sat * (0.9 + 0.1 * sin(t * 1.5))
-                let newBri = min(bri * (0.92 + 0.12 * sin(t * 0.7)), 1.0)
-                shape.fillColor = UIColor(hue: newHue, saturation: newSat, brightness: newBri, alpha: alpha)
-                shape.strokeColor = UIColor(hue: newHue, saturation: min(newSat * 1.1, 1.0), brightness: newBri * 0.7, alpha: dAlpha)
+            let anim = SKAction.customAction(withDuration: duration) { [weak sheen] node, elapsed in
+                guard let shape = node as? SKShapeNode, let sheen = sheen else { return }
+                let t = (elapsed / CGFloat(duration)) + CGFloat(phaseOffset / (.pi * 2))
+                // Rainbow hue cycles fully but overlay is very transparent
+                let overlayHue = t.truncatingRemainder(dividingBy: 1.0)
+                sheen.fillColor = UIColor(hue: overlayHue, saturation: 0.8, brightness: 1.0, alpha: 0.12)
+                // Stroke follows with subtle rainbow tint
+                let strokeBri = min(dBri * (0.95 + 0.1 * sin(t * .pi * 2)), 1.0)
+                shape.strokeColor = UIColor(hue: overlayHue, saturation: dSat * 0.5, brightness: strokeBri, alpha: dAlpha)
             }
-            node.run(SKAction.repeatForever(shift), withKey: "skinAnim")
+            node.run(SKAction.repeatForever(anim), withKey: "skinAnim")
 
         case .ember:
-            // Chaotic multi-frequency fire flicker + warm hue drift
+            // Firelight: warm-tinted overlay that flickers chaotically like firelight
+            let firelight = SKShapeNode(rectOf: CGSize(width: bSize.width - 4, height: bSize.height - 4), cornerRadius: blockCornerRadius - 1)
+            firelight.fillColor = UIColor.clear
+            firelight.strokeColor = .clear
+            firelight.zPosition = 2
+            firelight.name = "skinOverlay"
+            node.addChild(firelight)
+
             let duration: TimeInterval = 3.0
             let freq2 = CGFloat.random(in: 2.3...3.1)
             let freq3 = CGFloat.random(in: 4.5...6.0)
-            let ember = SKAction.customAction(withDuration: duration) { node, elapsed in
-                guard let shape = node as? SKShapeNode else { return }
+            let anim = SKAction.customAction(withDuration: duration) { [weak firelight] node, elapsed in
+                guard let shape = node as? SKShapeNode, let firelight = firelight else { return }
                 let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
+                // Three overlapping sine waves for organic flickering
                 let flicker1 = sin(t)
                 let flicker2 = 0.4 * sin(t * freq2 + 0.8)
                 let flicker3 = 0.2 * sin(t * freq3 + 2.1)
                 let combined = (flicker1 + flicker2 + flicker3) / 1.6
-                let newBri = min(bri * (0.8 + 0.25 * combined), 1.0)
-                let hueDrift = 0.03 * max(combined, 0)
-                let newHue = (hue + hueDrift).truncatingRemainder(dividingBy: 1.0)
-                shape.fillColor = UIColor(hue: newHue, saturation: sat, brightness: newBri, alpha: alpha)
-                let strokeBri = min(dBri * (0.9 + 0.4 * max(combined, 0)), 1.0)
-                shape.strokeColor = UIColor(hue: min(dHue + 0.02, 1.0), saturation: dSat, brightness: strokeBri, alpha: dAlpha)
+                // Warm orange overlay at low opacity, flickers with fire rhythm
+                let warmAlpha = max(0, 0.15 * combined)
+                firelight.fillColor = UIColor(red: 1.0, green: 0.5, blue: 0.1, alpha: warmAlpha)
+                // Stroke flickers brighter on peaks
+                let strokeBri = min(dBri * (0.9 + 0.35 * max(combined, 0)), 1.0)
+                shape.strokeColor = UIColor(hue: dHue, saturation: dSat, brightness: strokeBri, alpha: dAlpha)
             }
-            node.run(SKAction.repeatForever(ember), withKey: "skinAnim")
+            node.run(SKAction.repeatForever(anim), withKey: "skinAnim")
 
         case .neonPulse:
-            // Breathing stroke width + brightness pulse + random flicker
+            // Electric neon: breathing stroke width + stroke glow, fill untouched
             let duration: TimeInterval = 2.5
             let neon = SKAction.customAction(withDuration: duration) { node, elapsed in
                 guard let shape = node as? SKShapeNode else { return }
                 let t = (elapsed / CGFloat(duration)) * .pi * 2 + phaseOffset
                 let pulse = 0.5 + 0.5 * sin(t)
+                // Stroke width breathes between thin and thick
                 shape.lineWidth = 1.0 + 2.0 * pulse
+                // Stroke brightness pulses
                 let strokeBri = min(dBri * (1.0 + 0.5 * pulse), 1.0)
                 shape.strokeColor = UIColor(hue: dHue, saturation: dSat * (0.8 + 0.2 * pulse), brightness: strokeBri, alpha: dAlpha)
-                let fillBri = bri * (0.9 + 0.15 * pulse)
-                shape.fillColor = UIColor(hue: hue, saturation: sat, brightness: fillBri, alpha: alpha)
-                // Random micro-flicker
+                // Random micro-flicker on stroke only
                 if CGFloat.random(in: 0...1) < 0.03 {
-                    shape.fillColor = UIColor(hue: hue, saturation: sat * 0.5, brightness: min(bri * 1.6, 1.0), alpha: alpha)
-                    shape.lineWidth = 4.0
+                    shape.lineWidth = 4.5
+                    shape.strokeColor = UIColor(hue: dHue, saturation: dSat * 0.5, brightness: min(dBri * 1.8, 1.0), alpha: 1.0)
                 }
             }
             node.run(SKAction.repeatForever(neon), withKey: "skinAnim")
