@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -101,7 +101,7 @@
 		950656D6DFC2E78E167B5511 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		A3E2C122D0174C135707364E /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
 		A900B4DADFC0A78696343DDB /* Block.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Block.swift; sourceTree = "<group>"; };
-		AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StackAndBlast.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Stack & Blast.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0DA143612035E002056B863 /* DailyChallengeRewardManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallengeRewardManager.swift; sourceTree = "<group>"; };
 		B18E895F6DF338D02839E2BF /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
 		B3F2BB2B0939AB4905980F02 /* ShareScoreCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareScoreCardView.swift; sourceTree = "<group>"; };
@@ -117,10 +117,10 @@
 		D99EFBCD94DFC012B5E70FBA /* CoreHaptics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreHaptics.framework; path = System/Library/Frameworks/CoreHaptics.framework; sourceTree = SDKROOT; };
 		DC0F75865A72843A7CC5E513 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		DEA0A61077F854214A7697C6 /* SkinManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkinManager.swift; sourceTree = "<group>"; };
-		DFAAD1A61C41159141CCD358 /* Configuration.storekit */ = {isa = PBXFileReference; path = Configuration.storekit; sourceTree = "<group>"; };
+		DFAAD1A61C41159141CCD358 /* Configuration.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Configuration.storekit; sourceTree = "<group>"; };
 		E655E6759769F9FD4E92B1BC /* GameConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConstants.swift; sourceTree = "<group>"; };
 		ED42FD62CFADAAFD00F55DF3 /* CoinManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoinManager.swift; sourceTree = "<group>"; };
-		F3F2C921DEC6745D5B879C3B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		F3F2C921DEC6745D5B879C3B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F98B45465F8556B9B99E8285 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -310,7 +310,7 @@
 		B7FBF46E9D7989B34A0F81D6 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */,
+				AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -395,7 +395,7 @@
 				889188E2F3FEE4078BAE72E0 /* FirebaseAnalytics */,
 			);
 			productName = StackAndBlast;
-			productReference = AA06D0D73848C9E78D9550C9 /* StackAndBlast.app */;
+			productReference = AA06D0D73848C9E78D9550C9 /* Stack & Blast.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -421,7 +421,6 @@
 				D695B2502DF232032C695092 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				C347E8F05BDFB3E7C61318FC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -570,6 +569,7 @@
 				CODE_SIGN_ENTITLEMENTS = StackAndBlast/StackAndBlast.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				INFOPLIST_FILE = StackAndBlast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -593,6 +593,7 @@
 				CODE_SIGN_ENTITLEMENTS = StackAndBlast/StackAndBlast.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8NKQAWBSBB;
 				INFOPLIST_FILE = StackAndBlast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

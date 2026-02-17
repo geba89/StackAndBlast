@@ -153,6 +153,10 @@ struct GameView: View {
                 scene.refreshAllBlocks()
             })
         }
+        // Refresh grid + blocks when the active skin changes (e.g. from SkinPickerView)
+        .onChange(of: SettingsManager.shared.activeSkinID) {
+            scene.refreshAllBlocks()
+        }
         .onAppear {
             scene.viewModel = viewModel
             viewModel.scene = scene

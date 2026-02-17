@@ -333,11 +333,20 @@ final class GameScene: SKScene {
             node.run(SKAction.repeatForever(shift), withKey: "skinAnim")
 
         case .shimmer:
-            // Subtle brightness pulse
-            let shimmer = SKAction.sequence([
-                SKAction.fadeAlpha(to: 0.82, duration: 0.6),
-                SKAction.fadeAlpha(to: 1.0, duration: 0.6)
-            ])
+            // Brightness pulse — cycles between dimmer and brighter versions of the block color
+            let baseColor = SkinManager.shared.colorForBlock(blockColor)
+            var hue: CGFloat = 0, sat: CGFloat = 0, bri: CGFloat = 0, alpha: CGFloat = 0
+            baseColor.getHue(&hue, saturation: &sat, brightness: &bri, alpha: &alpha)
+
+            let duration: TimeInterval = 1.2
+            let shimmer = SKAction.customAction(withDuration: duration) { node, elapsed in
+                guard let shape = node as? SKShapeNode else { return }
+                let progress = elapsed / CGFloat(duration)
+                // Sine wave oscillation between 70% and 110% brightness
+                let factor = 0.9 + 0.2 * sin(progress * .pi * 2)
+                let newBri = min(bri * factor, 1.0)
+                shape.fillColor = UIColor(hue: hue, saturation: sat, brightness: newBri, alpha: alpha)
+            }
             node.run(SKAction.repeatForever(shimmer), withKey: "skinAnim")
         }
     }

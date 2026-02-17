@@ -128,7 +128,7 @@ struct SettingsView: View {
                             .fontWeight(.bold)
                             .foregroundStyle(.gray)
 
-                        Text("Special blocks spawn every 8 pieces. Blast them to trigger their effect!")
+                        Text("Power-ups appear in your piece tray every few rounds. Place them on the grid to trigger their effect!")
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(.gray.opacity(0.8))
 
