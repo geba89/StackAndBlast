@@ -2,10 +2,14 @@ import UIKit
 
 /// Types of animation effects for animated skins.
 enum SkinAnimationType {
-    /// Colors slowly cycle through hue shifts (Holographic).
+    /// Rainbow hue rotation with saturation modulation (Holographic, Prismatic).
     case colorShift
-    /// Subtle brightness pulse / shimmer overlay (Ice).
+    /// Frost shimmer — brightness pulse with stroke glow and subtle scale (Ice).
     case shimmer
+    /// Fire flicker — chaotic multi-frequency brightness with warm hue shifts (Ember, Lava).
+    case ember
+    /// Electric neon — pulsing glow ring with stroke width animation and flicker (Void).
+    case neonPulse
 }
 
 /// Defines a cosmetic skin theme with 6 block colors and an unlock condition.
@@ -423,6 +427,7 @@ final class SkinManager {
                 unlockCondition: "Purchase for 300 coins",
                 isUnlocked: { defaults.bool(forKey: "skin_purchased_lava") },
                 coinPrice: 300,
+                animationType: .ember,
                 gridLightColor: UIColor(red: 0.22, green: 0.10, blue: 0.08, alpha: 1),
                 gridDarkColor: UIColor(red: 0.18, green: 0.07, blue: 0.05, alpha: 1)
             ),
@@ -555,7 +560,7 @@ final class SkinManager {
                 unlockCondition: "Purchase for 500 coins",
                 isUnlocked: { defaults.bool(forKey: "skin_purchased_ember") },
                 coinPrice: 500,
-                animationType: .shimmer,
+                animationType: .ember,
                 gridLightColor: UIColor(red: 0.20, green: 0.14, blue: 0.08, alpha: 1),
                 gridDarkColor: UIColor(red: 0.16, green: 0.10, blue: 0.05, alpha: 1)
             ),
@@ -609,7 +614,7 @@ final class SkinManager {
                 unlockCondition: "Purchase for 750 coins",
                 isUnlocked: { defaults.bool(forKey: "skin_purchased_void") },
                 coinPrice: 750,
-                animationType: .shimmer,
+                animationType: .neonPulse,
                 gridLightColor: UIColor(red: 0.08, green: 0.08, blue: 0.10, alpha: 1),
                 gridDarkColor: UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1)
             )
