@@ -18,11 +18,16 @@ final class AdManager: NSObject {
     /// Whether an interstitial ad is loaded and ready.
     private(set) var isInterstitialReady: Bool = false
 
-    // MARK: - Ad Unit IDs
+    // MARK: - Ad Unit IDs (Production)
 
     private let bombRewardedAdUnitID = "ca-app-pub-2741592186352961/8805323485"
     private let doubleScoreRewardedAdUnitID = "ca-app-pub-2741592186352961/8805323485"
     private let interstitialAdUnitID = "ca-app-pub-2741592186352961/9545196682"
+
+    // Google's official test ad unit IDs — used as fallback when production ads have no fill
+    // (e.g. app not yet published on the App Store).
+    private let testRewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
+    private let testInterstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
 
     // MARK: - Ad Instances
 
@@ -76,19 +81,43 @@ final class AdManager: NSObject {
     }
 
     func loadBombRewardedAd(completion: ((Bool) -> Void)?) {
-        GADRewardedAd.load(withAdUnitID: bombRewardedAdUnitID, request: GADRequest()) { [weak self] ad, error in
+        loadRewardedAd(unitID: bombRewardedAdUnitID) { [weak self] ad in
             guard let self else { completion?(false); return }
+            if let ad {
+                self.bombRewardedAd = ad
+                self.bombRewardedAd?.fullScreenContentDelegate = self
+                self.isRewardedAdReady = true
+                completion?(true)
+            } else {
+                // Production ad failed — fall back to Google test ad so the button always works
+                // (common when app is not yet published on the App Store).
+                print("[AdManager] Production bomb ad failed, falling back to test ad")
+                self.loadRewardedAd(unitID: self.testRewardedAdUnitID) { [weak self] testAd in
+                    guard let self else { completion?(false); return }
+                    if let testAd {
+                        self.bombRewardedAd = testAd
+                        self.bombRewardedAd?.fullScreenContentDelegate = self
+                        self.isRewardedAdReady = true
+                        completion?(true)
+                    } else {
+                        self.bombRewardedAd = nil
+                        self.isRewardedAdReady = false
+                        completion?(false)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Loads a rewarded ad with the given unit ID, returning the ad or nil on failure.
+    private func loadRewardedAd(unitID: String, completion: @escaping (GADRewardedAd?) -> Void) {
+        GADRewardedAd.load(withAdUnitID: unitID, request: GADRequest()) { ad, error in
             if let error {
-                print("[AdManager] Failed to load bomb rewarded ad: \(error.localizedDescription)")
-                self.bombRewardedAd = nil
-                self.isRewardedAdReady = false
-                completion?(false)
+                print("[AdManager] Failed to load rewarded ad (\(unitID)): \(error.localizedDescription)")
+                completion(nil)
                 return
             }
-            self.bombRewardedAd = ad
-            self.bombRewardedAd?.fullScreenContentDelegate = self
-            self.isRewardedAdReady = true
-            completion?(true)
+            completion(ad)
         }
     }
 
@@ -113,19 +142,29 @@ final class AdManager: NSObject {
     }
 
     func loadDoubleScoreAd(completion: ((Bool) -> Void)?) {
-        GADRewardedAd.load(withAdUnitID: doubleScoreRewardedAdUnitID, request: GADRequest()) { [weak self] ad, error in
+        loadRewardedAd(unitID: doubleScoreRewardedAdUnitID) { [weak self] ad in
             guard let self else { completion?(false); return }
-            if let error {
-                print("[AdManager] Failed to load double-score ad: \(error.localizedDescription)")
-                self.doubleScoreRewardedAd = nil
-                self.isDoubleScoreAdReady = false
-                completion?(false)
-                return
+            if let ad {
+                self.doubleScoreRewardedAd = ad
+                self.doubleScoreRewardedAd?.fullScreenContentDelegate = self
+                self.isDoubleScoreAdReady = true
+                completion?(true)
+            } else {
+                print("[AdManager] Production double-score ad failed, falling back to test ad")
+                self.loadRewardedAd(unitID: self.testRewardedAdUnitID) { [weak self] testAd in
+                    guard let self else { completion?(false); return }
+                    if let testAd {
+                        self.doubleScoreRewardedAd = testAd
+                        self.doubleScoreRewardedAd?.fullScreenContentDelegate = self
+                        self.isDoubleScoreAdReady = true
+                        completion?(true)
+                    } else {
+                        self.doubleScoreRewardedAd = nil
+                        self.isDoubleScoreAdReady = false
+                        completion?(false)
+                    }
+                }
             }
-            self.doubleScoreRewardedAd = ad
-            self.doubleScoreRewardedAd?.fullScreenContentDelegate = self
-            self.isDoubleScoreAdReady = true
-            completion?(true)
         }
     }
 
@@ -146,17 +185,37 @@ final class AdManager: NSObject {
     // MARK: - Interstitial Ad
 
     func loadInterstitialAd() {
-        GADInterstitialAd.load(withAdUnitID: interstitialAdUnitID, request: GADRequest()) { [weak self] ad, error in
+        loadInterstitial(unitID: interstitialAdUnitID) { [weak self] ad in
             guard let self else { return }
+            if let ad {
+                self.interstitialAd = ad
+                self.interstitialAd?.fullScreenContentDelegate = self
+                self.isInterstitialReady = true
+            } else {
+                print("[AdManager] Production interstitial failed, falling back to test ad")
+                self.loadInterstitial(unitID: self.testInterstitialAdUnitID) { [weak self] testAd in
+                    guard let self else { return }
+                    if let testAd {
+                        self.interstitialAd = testAd
+                        self.interstitialAd?.fullScreenContentDelegate = self
+                        self.isInterstitialReady = true
+                    } else {
+                        self.interstitialAd = nil
+                        self.isInterstitialReady = false
+                    }
+                }
+            }
+        }
+    }
+
+    private func loadInterstitial(unitID: String, completion: @escaping (GADInterstitialAd?) -> Void) {
+        GADInterstitialAd.load(withAdUnitID: unitID, request: GADRequest()) { ad, error in
             if let error {
-                print("[AdManager] Failed to load interstitial: \(error.localizedDescription)")
-                self.interstitialAd = nil
-                self.isInterstitialReady = false
+                print("[AdManager] Failed to load interstitial (\(unitID)): \(error.localizedDescription)")
+                completion(nil)
                 return
             }
-            self.interstitialAd = ad
-            self.interstitialAd?.fullScreenContentDelegate = self
-            self.isInterstitialReady = true
+            completion(ad)
         }
     }
 
