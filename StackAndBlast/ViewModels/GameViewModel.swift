@@ -304,11 +304,11 @@ final class GameViewModel {
 
     /// Show a rewarded ad, then activate bomb placement mode on success.
     func watchAdForBomb() {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootVC = windowScene.windows.first?.rootViewController else { return }
+        guard let topVC = AdManager.shared.topViewController() else { return }
 
         let presentAd = { [weak self] in
-            AdManager.shared.showRewardedAd(from: rootVC) { [weak self] success in
+            let presentingVC = AdManager.shared.topViewController() ?? topVC
+            AdManager.shared.showRewardedAd(from: presentingVC) { [weak self] success in
                 guard let self, success else { return }
                 self.isBombMode = true
                 AnalyticsManager.shared.logBombAdWatched(score: self.engine.score)
@@ -320,7 +320,7 @@ final class GameViewModel {
         } else {
             AdManager.shared.loadBombRewardedAd { ready in
                 if ready {
-                    presentAd()
+                    DispatchQueue.main.async { presentAd() }
                 }
             }
         }
@@ -332,11 +332,11 @@ final class GameViewModel {
     func watchAdForDoubleScore() {
         guard !hasDoubledScore else { return }
 
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootVC = windowScene.windows.first?.rootViewController else { return }
+        guard let topVC = AdManager.shared.topViewController() else { return }
 
         let presentAd = { [weak self] in
-            AdManager.shared.showDoubleScoreAd(from: rootVC) { [weak self] success in
+            let presentingVC = AdManager.shared.topViewController() ?? topVC
+            AdManager.shared.showDoubleScoreAd(from: presentingVC) { [weak self] success in
                 guard let self, success else { return }
                 let originalScore = self.engine.score
                 self.engine.addBonusScore(originalScore)
@@ -363,7 +363,11 @@ final class GameViewModel {
         if AdManager.shared.isDoubleScoreAdReady {
             presentAd()
         } else {
-            AdManager.shared.loadDoubleScoreAd()
+            AdManager.shared.loadDoubleScoreAd { ready in
+                if ready {
+                    DispatchQueue.main.async { presentAd() }
+                }
+            }
         }
     }
 

@@ -109,17 +109,23 @@ final class AdManager: NSObject {
     // MARK: - Double-Score Rewarded Ad
 
     func loadDoubleScoreAd() {
+        loadDoubleScoreAd(completion: nil)
+    }
+
+    func loadDoubleScoreAd(completion: ((Bool) -> Void)?) {
         GADRewardedAd.load(withAdUnitID: doubleScoreRewardedAdUnitID, request: GADRequest()) { [weak self] ad, error in
-            guard let self else { return }
+            guard let self else { completion?(false); return }
             if let error {
                 print("[AdManager] Failed to load double-score ad: \(error.localizedDescription)")
                 self.doubleScoreRewardedAd = nil
                 self.isDoubleScoreAdReady = false
+                completion?(false)
                 return
             }
             self.doubleScoreRewardedAd = ad
             self.doubleScoreRewardedAd?.fullScreenContentDelegate = self
             self.isDoubleScoreAdReady = true
+            completion?(true)
         }
     }
 
@@ -175,7 +181,7 @@ final class AdManager: NSObject {
             return
         }
 
-        guard let ad = interstitialAd, let rootVC = rootViewController() else {
+        guard let ad = interstitialAd, let rootVC = topViewController() else {
             completion()
             return
         }
@@ -188,9 +194,27 @@ final class AdManager: NSObject {
 
     // MARK: - Helpers
 
-    private func rootViewController() -> UIViewController? {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return nil }
-        return windowScene.windows.first?.rootViewController
+    /// Returns the topmost presented view controller from the foreground active scene.
+    /// Falls back to any connected scene if no scene reports foreground-active (e.g. during launch).
+    func topViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+
+        // Prefer the foreground-active scene; fall back to any connected scene.
+        let windowScene = scenes.first(where: { $0.activationState == .foregroundActive })
+            ?? scenes.first
+
+        guard let rootVC = windowScene?.windows.first(where: { $0.isKeyWindow })?.rootViewController
+                ?? windowScene?.windows.first?.rootViewController else {
+            return nil
+        }
+
+        // Walk the presentation chain to find the topmost presented VC.
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController {
+            topVC = presented
+        }
+        return topVC
     }
 }
 

@@ -9,6 +9,8 @@ struct MenuView: View {
     @State private var showStats = false
     @State private var showAchievements = false
     @State private var showStore = false
+    @State private var isLoadingAd = false
+    @State private var showAdError = false
     @AppStorage("lastDailyChallengeDate") private var lastDailyChallengeDate = ""
     @AppStorage("lastDailyBonusDate") private var lastDailyBonusDate = ""
 
@@ -184,9 +186,14 @@ struct MenuView: View {
                                 watchDailyBonusAd()
                             } label: {
                                 HStack(spacing: 8) {
-                                    Image(systemName: "play.rectangle.fill")
-                                        .font(.subheadline)
-                                    Text("WATCH AD FOR 50 COINS")
+                                    if isLoadingAd {
+                                        ProgressView()
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "play.rectangle.fill")
+                                            .font(.subheadline)
+                                    }
+                                    Text(isLoadingAd ? "LOADING AD..." : "WATCH AD FOR 50 COINS")
                                         .font(.system(.subheadline, design: .rounded))
                                         .fontWeight(.bold)
                                     Spacer()
@@ -204,6 +211,7 @@ struct MenuView: View {
                                 .padding(.horizontal, 16)
                                 .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                             }
+                            .disabled(isLoadingAd)
                         }
                     }
 
@@ -225,21 +233,33 @@ struct MenuView: View {
         .fullScreenCover(isPresented: $showStore) {
             StoreView()
         }
+        .alert("Ad Not Available", isPresented: $showAdError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("No ad is available right now. Please try again later.")
+        }
     }
 
     /// Watch a rewarded ad for 50 bonus coins (once per day).
     private func watchDailyBonusAd() {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootVC = windowScene.windows.first?.rootViewController else { return }
+        guard let topVC = AdManager.shared.topViewController() else {
+            showAdError = true
+            return
+        }
 
         let presentAd = {
-            AdManager.shared.showRewardedAd(from: rootVC) { success in
-                if success {
-                    CoinManager.shared.earn(50, source: "daily_bonus_ad")
-                    AnalyticsManager.shared.logCoinsEarned(amount: 50, source: "daily_bonus_ad")
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyy-MM-dd"
-                    lastDailyBonusDate = formatter.string(from: Date())
+            // Re-resolve topmost VC right before presentation to avoid stale references.
+            let presentingVC = AdManager.shared.topViewController() ?? topVC
+            AdManager.shared.showRewardedAd(from: presentingVC) { success in
+                DispatchQueue.main.async {
+                    isLoadingAd = false
+                    if success {
+                        CoinManager.shared.earn(50, source: "daily_bonus_ad")
+                        AnalyticsManager.shared.logCoinsEarned(amount: 50, source: "daily_bonus_ad")
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "yyyy-MM-dd"
+                        lastDailyBonusDate = formatter.string(from: Date())
+                    }
                 }
             }
         }
@@ -247,8 +267,16 @@ struct MenuView: View {
         if AdManager.shared.isRewardedAdReady {
             presentAd()
         } else {
+            isLoadingAd = true
             AdManager.shared.loadBombRewardedAd { ready in
-                if ready { presentAd() }
+                DispatchQueue.main.async {
+                    if ready {
+                        presentAd()
+                    } else {
+                        isLoadingAd = false
+                        showAdError = true
+                    }
+                }
             }
         }
     }
