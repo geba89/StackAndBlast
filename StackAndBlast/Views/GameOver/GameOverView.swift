@@ -64,8 +64,8 @@ struct GameOverView: View {
 
                 // Action buttons
                 VStack(spacing: 12) {
-                    // USE BOMB — only shown when ad is loaded and not yet used
-                    if !hasContinued && AdManager.shared.isRewardedAdReady {
+                    // USE BOMB — classic mode only, when ad is loaded and not yet used
+                    if gameMode == .classic && !hasContinued && AdManager.shared.isRewardedAdReady {
                         Button(action: onUseBomb) {
                             HStack(spacing: 8) {
                                 Image(systemName: "flame.fill")
@@ -96,8 +96,8 @@ struct GameOverView: View {
                         }
                     }
 
-                    // DOUBLE SCORE — only shown when ad is loaded and not yet used
-                    if !hasDoubledScore && AdManager.shared.isDoubleScoreAdReady {
+                    // DOUBLE SCORE — classic mode only, when ad is loaded and not yet used
+                    if gameMode == .classic && !hasDoubledScore && AdManager.shared.isDoubleScoreAdReady {
                         Button(action: onDoubleScore) {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.up.forward")
