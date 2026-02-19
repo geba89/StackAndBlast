@@ -9,8 +9,6 @@ struct MenuView: View {
     @State private var showStats = false
     @State private var showAchievements = false
     @State private var showStore = false
-    @State private var isLoadingAd = false
-    @State private var showAdError = false
     @AppStorage("lastDailyChallengeDate") private var lastDailyChallengeDate = ""
     @AppStorage("lastDailyBonusDate") private var lastDailyBonusDate = ""
 
@@ -180,20 +178,15 @@ struct MenuView: View {
                             selectedMode = .blastRush
                         }
 
-                        // Daily bonus ad button (50 coins for watching, once per day)
-                        if networkMonitor.isConnected && !hasDailyBonusToday {
+                        // Daily bonus ad button — only shown when an ad is actually loaded
+                        if networkMonitor.isConnected && !hasDailyBonusToday && AdManager.shared.isRewardedAdReady {
                             Button {
                                 watchDailyBonusAd()
                             } label: {
                                 HStack(spacing: 8) {
-                                    if isLoadingAd {
-                                        ProgressView()
-                                            .tint(.white)
-                                    } else {
-                                        Image(systemName: "play.rectangle.fill")
-                                            .font(.subheadline)
-                                    }
-                                    Text(isLoadingAd ? "LOADING AD..." : "WATCH AD FOR 50 COINS")
+                                    Image(systemName: "play.rectangle.fill")
+                                        .font(.subheadline)
+                                    Text("WATCH AD FOR 50 COINS")
                                         .font(.system(.subheadline, design: .rounded))
                                         .fontWeight(.bold)
                                     Spacer()
@@ -211,7 +204,6 @@ struct MenuView: View {
                                 .padding(.horizontal, 16)
                                 .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                             }
-                            .disabled(isLoadingAd)
                         }
                     }
 
@@ -233,49 +225,21 @@ struct MenuView: View {
         .fullScreenCover(isPresented: $showStore) {
             StoreView()
         }
-        .alert("Ad Not Available", isPresented: $showAdError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("No ad is available right now. Please try again later.")
-        }
     }
 
     /// Watch a rewarded ad for 50 bonus coins (once per day).
+    /// Button is only visible when an ad is preloaded, so this should always succeed.
     private func watchDailyBonusAd() {
-        guard let topVC = AdManager.shared.topViewController() else {
-            showAdError = true
-            return
-        }
+        guard let topVC = AdManager.shared.topViewController() else { return }
 
-        let presentAd = {
-            // Re-resolve topmost VC right before presentation to avoid stale references.
-            let presentingVC = AdManager.shared.topViewController() ?? topVC
-            AdManager.shared.showRewardedAd(from: presentingVC) { success in
-                DispatchQueue.main.async {
-                    isLoadingAd = false
-                    if success {
-                        CoinManager.shared.earn(50, source: "daily_bonus_ad")
-                        AnalyticsManager.shared.logCoinsEarned(amount: 50, source: "daily_bonus_ad")
-                        let formatter = DateFormatter()
-                        formatter.dateFormat = "yyyy-MM-dd"
-                        lastDailyBonusDate = formatter.string(from: Date())
-                    }
-                }
-            }
-        }
-
-        if AdManager.shared.isRewardedAdReady {
-            presentAd()
-        } else {
-            isLoadingAd = true
-            AdManager.shared.loadBombRewardedAd { ready in
-                DispatchQueue.main.async {
-                    if ready {
-                        presentAd()
-                    } else {
-                        isLoadingAd = false
-                        showAdError = true
-                    }
+        AdManager.shared.showRewardedAd(from: topVC) { success in
+            DispatchQueue.main.async {
+                if success {
+                    CoinManager.shared.earn(50, source: "daily_bonus_ad")
+                    AnalyticsManager.shared.logCoinsEarned(amount: 50, source: "daily_bonus_ad")
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    lastDailyBonusDate = formatter.string(from: Date())
                 }
             }
         }

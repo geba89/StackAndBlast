@@ -64,8 +64,8 @@ struct GameOverView: View {
 
                 // Action buttons
                 VStack(spacing: 12) {
-                    // USE BOMB — only available once per game
-                    if !hasContinued {
+                    // USE BOMB — only shown when ad is loaded and not yet used
+                    if !hasContinued && AdManager.shared.isRewardedAdReady {
                         Button(action: onUseBomb) {
                             HStack(spacing: 8) {
                                 Image(systemName: "flame.fill")
@@ -96,8 +96,8 @@ struct GameOverView: View {
                         }
                     }
 
-                    // DOUBLE SCORE — once per game, requires ad
-                    if !hasDoubledScore {
+                    // DOUBLE SCORE — only shown when ad is loaded and not yet used
+                    if !hasDoubledScore && AdManager.shared.isDoubleScoreAdReady {
                         Button(action: onDoubleScore) {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.up.forward")
