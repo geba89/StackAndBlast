@@ -315,15 +315,10 @@ final class GameViewModel {
             }
         }
 
-        if AdManager.shared.isRewardedAdReady {
-            presentAd()
-        } else {
-            AdManager.shared.loadBombRewardedAd { ready in
-                if ready {
-                    DispatchQueue.main.async { presentAd() }
-                }
-            }
-        }
+        // Only present if the ad was successfully preloaded — don't load on-the-fly
+        // to avoid showing test/sample ads when production inventory has no fill.
+        guard AdManager.shared.isRewardedAdReady else { return }
+        presentAd()
     }
 
     // MARK: - Double Score Ad
@@ -360,15 +355,10 @@ final class GameViewModel {
             }
         }
 
-        if AdManager.shared.isDoubleScoreAdReady {
-            presentAd()
-        } else {
-            AdManager.shared.loadDoubleScoreAd { ready in
-                if ready {
-                    DispatchQueue.main.async { presentAd() }
-                }
-            }
-        }
+        // Only present if the ad was successfully preloaded — don't load on-the-fly
+        // to avoid showing test/sample ads when production inventory has no fill.
+        guard AdManager.shared.isDoubleScoreAdReady else { return }
+        presentAd()
     }
 
     /// Place the bomb at the given grid position and animate the explosion.
