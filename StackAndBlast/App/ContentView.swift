@@ -13,18 +13,10 @@ struct ContentView: View {
     /// Day key of the last daily-reward check, to re-check when the app resumes on a new day.
     @State private var lastDailyRewardCheckDay = ""
 
-    #if DEBUG
-    /// CI screenshots only: launching with the environment variable
-    /// SCREENSHOT_SCENARIO=menu|tutorial|classic jumps straight to that screen and
-    /// skips onboarding, ads, sign-in prompts and popups. Not compiled into Release
-    /// (TestFlight / App Store) builds.
-    private static let screenshotScenario = ProcessInfo.processInfo.environment["SCREENSHOT_SCENARIO"]
-    #endif
-
     /// Whether this launch is a CI screenshot run (always false in Release builds).
     private var isScreenshotRun: Bool {
         #if DEBUG
-        return Self.screenshotScenario != nil
+        return ScreenshotScenario.current != nil
         #else
         return false
         #endif
@@ -189,13 +181,9 @@ struct ContentView: View {
         // Show daily reward popup on first appear
         .onAppear {
             #if DEBUG
-            if let scenario = Self.screenshotScenario {
+            if let scenario = ScreenshotScenario.current {
                 hasSeenOnboarding = true
-                switch scenario {
-                case "tutorial": selectedMode = .tutorial
-                case "classic":  selectedMode = .classic
-                default:         break // "menu"
-                }
+                stageScreenshot(scenario)
                 return
             }
             #endif
@@ -233,6 +221,41 @@ struct ContentView: View {
         }
     }
 
+    #if DEBUG
+    /// Set up the screen a CI screenshot scenario asks for (see `ScreenshotScenario`).
+    private func stageScreenshot(_ scenario: String) {
+        switch scenario {
+        case "tutorial":
+            selectedMode = .tutorial
+        case "classic":
+            selectedMode = .classic
+        case "board", "gameover":
+            if scenario == "gameover" {
+                // A previous best to beat (→ NEW BEST) and coins to pay for UNDO
+                ScoreManager.shared.submitScore(2_980, mode: .classic)
+                CoinManager.shared.earn(300, source: "screenshots")
+            }
+            selectedMode = .classic
+            // Give the game screen a moment to appear, then swap in the hand-made board
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                viewModel.stageScreenshot(scenario)
+            }
+        case "missions":
+            // Some progress to show: one mission done, two under way.
+            // (MenuView opens the missions sheet in this scenario.)
+            let missions = MissionManager.shared
+            for _ in 0..<14 { missions.record(.piecePlaced) }
+            for color in [BlockColor.blue, .coral, .green, .blue] {
+                missions.record(.blast(color: color, size: 11))
+            }
+            missions.record(.combo(2))
+            missions.record(.score(1_250))
+        default:
+            break // "menu"
+        }
+    }
+    #endif
+
     private func checkDailyReward() {
         guard !isScreenshotRun else { return }
         lastDailyRewardCheckDay = DailyChallengeDate.key()
@@ -246,6 +269,19 @@ struct ContentView: View {
         }
     }
 }
+
+// MARK: - CI Screenshots
+
+#if DEBUG
+/// CI screenshots only: launching with the environment variable SCREENSHOT_SCENARIO
+/// (menu, missions, tutorial, classic, board, gameover) jumps straight to that screen,
+/// with some staged content, and skips onboarding, ads, sign-in prompts and popups.
+/// Not compiled into Release (TestFlight / App Store) builds.
+/// See .github/ci/screenshots.sh.
+enum ScreenshotScenario {
+    static let current = ProcessInfo.processInfo.environment["SCREENSHOT_SCENARIO"]
+}
+#endif
 
 // MARK: - Mission Toast
 

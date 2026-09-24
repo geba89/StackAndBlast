@@ -84,6 +84,11 @@ Independently of Xcode Cloud, `.github/workflows/ios-ci.yml` runs on every push:
 the engine unit tests (`swift test`) and an unsigned simulator build with Xcode.
 It needs no Apple account and is free for this public repository.
 
-`.github/workflows/ui-screenshots.yml` additionally opens the menu, the tutorial and a
-Classic game in the iPhone SE, iPhone Pro and iPad simulators and prints each screen as a
-text map in the job log — a quick layout check (what sits where, what overlaps).
+`.github/workflows/ui-screenshots.yml` additionally takes screenshots in the iPhone SE,
+iPhone Pro and iPad simulators: the menu, the daily missions, the tutorial, a new Classic
+game, a crowded board with the blast preview and danger warning, and the game over screen
+(the last few with staged content, see `ScreenshotScenario` in `ContentView.swift` —
+debug builds only). Each run keeps them as a downloadable artifact ("screenshots", on the
+run's page under Actions). Put `[screenshots]` in a commit message, or start the workflow
+by hand, and it also commits small JPEG copies to `Docs/screenshots/` on that branch.
+If the app crashes in the simulator, the job log shows the crash reason.

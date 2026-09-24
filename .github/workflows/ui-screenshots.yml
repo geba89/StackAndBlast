@@ -1,6 +1,9 @@
 # Visual layout check without a Mac: builds the app, opens a few screens in the
-# iPhone SE / iPhone Pro / iPad simulators and prints each one as a text map in
-# the log (see .github/ci/ascii_screenshot.py). Runs on pushes that touch the app.
+# iPhone SE / iPhone Pro / iPad simulators, prints each one as a text map in the
+# log (see .github/ci/ascii_screenshot.py) and keeps the screenshots:
+#   - always as a downloadable artifact of the run ("screenshots")
+#   - committed to Docs/screenshots/ on the same branch when the pushed commit's
+#     message contains [screenshots] (or when the workflow is started by hand)
 name: UI Screenshots
 
 on:
@@ -16,9 +19,12 @@ concurrency:
   group: screenshots-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write # only used to commit the screenshots (see the last step)
+
 jobs:
   screenshots:
-    name: Simulator screens as text
+    name: Simulator screenshots
     runs-on: macos-15
     timeout-minutes: 45
 
@@ -48,8 +54,35 @@ jobs:
           python3 -m venv .venv
           .venv/bin/pip install --quiet pillow
 
-      - name: Screens as text
+      - name: Take screenshots
         run: |
           APP="$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)"
           echo "App: $APP"
-          .github/ci/screenshots.sh "$APP" .venv/bin/python
+          .github/ci/screenshots.sh "$APP" .venv/bin/python "$RUNNER_TEMP/screenshots"
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: |
+            ${{ runner.temp }}/screenshots/*.png
+            ${{ runner.temp }}/screenshots/*.txt
+
+      - name: Commit screenshots to the branch
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[screenshots]')
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          mkdir -p Docs/screenshots
+          cp "$RUNNER_TEMP"/screenshots/*.jpg Docs/screenshots/
+          git add Docs/screenshots
+          if git diff --cached --quiet; then
+            echo "Screenshots unchanged — nothing to commit"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit --quiet -m "docs: simulator screenshots [skip ci]"
+          # Fails if the branch moved on meanwhile — the next run will take new ones
+          git push origin "HEAD:refs/heads/$BRANCH" \
+            || echo "::warning::The branch moved on during the run; screenshots not committed"

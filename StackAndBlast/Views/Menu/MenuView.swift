@@ -249,6 +249,11 @@ struct MenuView: View {
         .onAppear {
             // New day since the app was last opened? Fresh missions.
             missions.refreshIfNewDay()
+            #if DEBUG
+            if ScreenshotScenario.current == "missions" {
+                showMissions = true
+            }
+            #endif
         }
     }
 

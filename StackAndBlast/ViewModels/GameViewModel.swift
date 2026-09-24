@@ -820,4 +820,63 @@ final class GameViewModel {
         timeRemaining += bonus
         lastMoveTimeBonus = bonus // an undo takes it back
     }
+
+    // MARK: - CI Screenshots
+
+    #if DEBUG
+    /// CI screenshots only (see `ScreenshotScenario`): replace the Classic game that just
+    /// started with a hand-made position. Not compiled into Release builds.
+    /// - "board": a crowded board (danger warning on) with a blue piece held over the gap
+    ///   between two blue groups, so the drop preview shows a 10-block blast.
+    /// - "gameover": one free cell left; the last move is played for real, so the game
+    ///   over screen (NEW BEST, UNDO) appears exactly as in a normal game.
+    func stageScreenshot(_ scenario: String) {
+        switch scenario {
+        case "board":
+            engine.startScenario(grid: BoardSketch.grid([
+                "Y Y C C P P G . K",
+                "Y G G C P K G G K",
+                "P G B C C K K Y Y",
+                "P P B B Y B K Y G",
+                "G P Y B . B C C G",
+                "G Y Y G . B P C G",
+                "K K Y G G B P C Y",
+                "C K P P G Y P K Y",
+                "C . K P G Y Y K K",
+            ]), tray: [
+                Piece(cells: PieceDefinitions.dominoV.cells, color: .blue),
+                Piece(cells: PieceDefinitions.lineH3.cells, color: .yellow),
+                Piece(cells: PieceDefinitions.dot.cells, color: .pink),
+            ], minGroupSize: nil, score: 460)
+            syncScene()
+            updateDanger()
+            scene?.debugHoldFirstPiece(over: GridPosition(row: 4, col: 4))
+
+        case "gameover":
+            engine.startScenario(grid: BoardSketch.grid([
+                "Y Y C C P P G G K",
+                "Y G G C P K G G K",
+                "P G B C C K K Y Y",
+                "P P B B Y B K Y G",
+                "G P Y B P B C C G",
+                "G Y Y G P B P C G",
+                "K K Y G G B P C Y",
+                "C K P P G Y P K Y",
+                "C . K P G Y Y K K",
+            ]), tray: [
+                Piece(cells: PieceDefinitions.dot.cells, color: .green),
+                Piece(cells: PieceDefinitions.dominoH.cells, color: .pink),
+            ], minGroupSize: nil, score: 3_149)
+            syncScene()
+            // The same calls the scene makes for a finger drag: the dot fills the last
+            // cell and the pink domino has nowhere to go → game over
+            beginDrag(piece: engine.tray[0])
+            updateHover(position: GridPosition(row: 8, col: 1))
+            endDrag()
+
+        default:
+            break
+        }
+    }
+    #endif
 }

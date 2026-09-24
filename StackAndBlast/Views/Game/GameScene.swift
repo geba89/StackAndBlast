@@ -1617,40 +1617,7 @@ final class GameScene: SKScene {
 
         if let hit = closest,
            let piece = viewModel?.engine.tray.first(where: { $0.id == hit.pieceID }) {
-            // Start dragging this piece
-            draggedPiece = piece
-
-            // Compute offset from drag node center to cell (0,0)
-            // so grid snapping aligns with the visual piece position
-            let minCol = piece.cells.map(\.col).min() ?? 0
-            let maxCol = piece.cells.map(\.col).max() ?? 0
-            let minRow = piece.cells.map(\.row).min() ?? 0
-            let maxRow = piece.cells.map(\.row).max() ?? 0
-            let pieceWidth = CGFloat(maxCol - minCol + 1)
-            let pieceHeight = CGFloat(maxRow - minRow + 1)
-            dragOriginOffset = CGPoint(
-                x: -pieceWidth * cellSize / 2 + cellSize / 2,
-                y: pieceHeight * cellSize / 2 - cellSize / 2
-            )
-
-            // Create a full-size copy of the piece for dragging
-            let dragNode = createDragNode(for: piece)
-            // Offset above finger so the piece is visible
-            dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
-            dragNode.zPosition = 10
-            addChild(dragNode)
-            draggedPieceNode = dragNode
-
-            // Fade out the tray version
-            hit.node.alpha = 0.3
-
-            // The tutorial's hand hint would only get in the way now
-            tutorialHand?.isHidden = true
-
-            lastTrailPosition = location
-            viewModel?.beginDrag(piece: piece)
-            AudioManager.shared.playPickup(cellCount: piece.cellCount)
-            HapticManager.shared.playPickup()
+            pickUp(piece, trayNode: hit.node, at: location)
         }
     }
 
@@ -1666,33 +1633,7 @@ final class GameScene: SKScene {
             return
         }
 
-        guard let dragNode = draggedPieceNode,
-              let piece = draggedPiece else { return }
-
-        // Move the drag node above the finger
-        dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
-
-        // Spawn drag trail particles (throttled by distance to avoid particle spam)
-        let dx = location.x - lastTrailPosition.x
-        let dy = location.y - lastTrailPosition.y
-        if dx * dx + dy * dy > 9 { // ~3pt movement threshold for denser trails
-            lastTrailPosition = location
-            spawnDragTrailParticle(at: dragNode.position, color: piece.color)
-        }
-
-        // Determine which grid cell the piece origin (cell 0,0) snaps to
-        // Offset from drag node center to where cell (0,0) visually sits
-        let snapPoint = CGPoint(
-            x: dragNode.position.x + dragOriginOffset.x,
-            y: dragNode.position.y + dragOriginOffset.y
-        )
-        let newHoverPosition = gridPosition(for: snapPoint)
-
-        if newHoverPosition != currentHoverPosition {
-            currentHoverPosition = newHoverPosition
-            updateGhostPreview(piece: piece, at: newHoverPosition)
-            viewModel?.updateHover(position: newHoverPosition ?? GridPosition(row: -1, col: -1))
-        }
+        moveDraggedPiece(to: location)
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -1746,6 +1687,97 @@ final class GameScene: SKScene {
     }
 
     // MARK: - Drag Helpers
+
+    /// Start dragging a tray piece: a full-size copy follows the finger, the tray version fades.
+    private func pickUp(_ piece: Piece, trayNode: SKNode, at location: CGPoint) {
+        draggedPiece = piece
+
+        // Offset from drag node center to cell (0,0),
+        // so grid snapping aligns with the visual piece position
+        dragOriginOffset = originOffset(for: piece)
+
+        // Create a full-size copy of the piece for dragging
+        let dragNode = createDragNode(for: piece)
+        // Offset above finger so the piece is visible
+        dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
+        dragNode.zPosition = 10
+        addChild(dragNode)
+        draggedPieceNode = dragNode
+
+        // Fade out the tray version
+        trayNode.alpha = 0.3
+
+        // The tutorial's hand hint would only get in the way now
+        tutorialHand?.isHidden = true
+
+        lastTrailPosition = location
+        viewModel?.beginDrag(piece: piece)
+        AudioManager.shared.playPickup(cellCount: piece.cellCount)
+        HapticManager.shared.playPickup()
+    }
+
+    /// Offset from the center of a piece's drag node to the center of its cell (0,0).
+    private func originOffset(for piece: Piece) -> CGPoint {
+        let minCol = piece.cells.map(\.col).min() ?? 0
+        let maxCol = piece.cells.map(\.col).max() ?? 0
+        let minRow = piece.cells.map(\.row).min() ?? 0
+        let maxRow = piece.cells.map(\.row).max() ?? 0
+        let pieceWidth = CGFloat(maxCol - minCol + 1)
+        let pieceHeight = CGFloat(maxRow - minRow + 1)
+        return CGPoint(
+            x: -pieceWidth * cellSize / 2 + cellSize / 2,
+            y: pieceHeight * cellSize / 2 - cellSize / 2
+        )
+    }
+
+    /// Move the dragged piece with the finger, and update the drop preview whenever
+    /// the piece snaps to a different cell.
+    private func moveDraggedPiece(to location: CGPoint) {
+        guard let dragNode = draggedPieceNode,
+              let piece = draggedPiece else { return }
+
+        // Move the drag node above the finger
+        dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
+
+        // Spawn drag trail particles (throttled by distance to avoid particle spam)
+        let dx = location.x - lastTrailPosition.x
+        let dy = location.y - lastTrailPosition.y
+        if dx * dx + dy * dy > 9 { // ~3pt movement threshold for denser trails
+            lastTrailPosition = location
+            spawnDragTrailParticle(at: dragNode.position, color: piece.color)
+        }
+
+        // Determine which grid cell the piece origin (cell 0,0) snaps to
+        // Offset from drag node center to where cell (0,0) visually sits
+        let snapPoint = CGPoint(
+            x: dragNode.position.x + dragOriginOffset.x,
+            y: dragNode.position.y + dragOriginOffset.y
+        )
+        let newHoverPosition = gridPosition(for: snapPoint)
+
+        if newHoverPosition != currentHoverPosition {
+            currentHoverPosition = newHoverPosition
+            updateGhostPreview(piece: piece, at: newHoverPosition)
+            viewModel?.updateHover(position: newHoverPosition ?? GridPosition(row: -1, col: -1))
+        }
+    }
+
+    #if DEBUG
+    /// CI screenshots only (see `ScreenshotScenario`): pick up the first tray piece and
+    /// hold it over `origin`, exactly as a finger would, so the drop preview shows.
+    /// Not compiled into Release builds.
+    func debugHoldFirstPiece(over origin: GridPosition) {
+        guard let piece = viewModel?.engine.tray.first,
+              let trayNode = trayPieceNodes[piece.id] else { return }
+        // The finger point that lands the piece's cell (0,0) on `origin`:
+        // the math of pickUp + moveDraggedPiece, run backwards
+        let cellCenter = scenePosition(for: origin)
+        let offset = originOffset(for: piece)
+        let finger = CGPoint(x: cellCenter.x - offset.x, y: cellCenter.y - offset.y - cellSize * 2)
+        pickUp(piece, trayNode: trayNode, at: finger)
+        moveDraggedPiece(to: finger)
+    }
+    #endif
 
     /// Create a full-size visual copy of a piece for dragging.
     private func createDragNode(for piece: Piece) -> SKNode {

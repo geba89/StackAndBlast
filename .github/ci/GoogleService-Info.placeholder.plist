@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Placeholder Firebase config used ONLY by CI compile checks.
+  Placeholder Firebase config used ONLY by CI (compile checks, simulator screenshots).
   The real GoogleService-Info.plist is gitignored; the Xcode project lists it as a
   resource, so builds fail without a file at StackAndBlast/GoogleService-Info.plist.
   These values are fake: an app built with them compiles but won't talk to Firebase.
+  They still have to look real — Firebase stops the app at launch otherwise (API_KEY:
+  "A" + 38 letters/digits/_/-; GOOGLE_APP_ID: 1:<number>:ios:<hex>).
 -->
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>ci-placeholder</string>
+	<string>ACI_placeholder_key_not_a_real_one_0000</string>
 	<key>GCM_SENDER_ID</key>
 	<string>000000000000</string>
 	<key>BUNDLE_ID</key>
