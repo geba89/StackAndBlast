@@ -23,14 +23,25 @@ base64 -i GoogleService-Info.plist | pbcopy
 
 The encoded file is now on your clipboard — you'll paste it in step 3.
 
-## 2. Create the workflow in Xcode
+## 2. Commit your signing team (once)
+
+Xcode Cloud builds from GitHub, not from your Mac, so the project in the repository
+must name your team. The committed project currently has no `DEVELOPMENT_TEAM`.
 
 1. Open `StackAndBlast.xcodeproj` in Xcode (signed in with your Apple ID under
    **Xcode → Settings → Accounts**).
-2. **Product → Xcode Cloud → Create Workflow…**
-3. Pick the **Stack & Blast** app and click **Next**, then **Edit Workflow**.
+2. Select the **StackAndBlast** target → **Signing & Capabilities** → tick
+   **Automatically manage signing** and choose your **Team**.
+3. Commit and push the resulting change to `project.pbxproj`. To keep it when you
+   regenerate the project with XcodeGen, also add `DEVELOPMENT_TEAM: <your team ID>`
+   under `settings: base:` of the target in `project.yml`.
 
-## 3. Configure it
+## 3. Create the workflow in Xcode
+
+1. **Product → Xcode Cloud → Create Workflow…**
+2. Pick the **Stack & Blast** app and click **Next**, then **Edit Workflow**.
+
+## 4. Configure it
 
 - **General** — Name: `TestFlight`.
 - **Environment**
@@ -46,7 +57,7 @@ The encoded file is now on your clipboard — you'll paste it in step 3.
 Click **Save**. Xcode then asks you to **grant access to the GitHub repository**
 (a browser window opens to install/authorize the Xcode Cloud GitHub app) — allow it.
 
-## 4. Build
+## 5. Build
 
 Click **Start Build** (or push a commit to the chosen branch). After roughly
 15–25 minutes the build shows up in the **TestFlight** app on your iPhone.
@@ -64,7 +75,7 @@ App Store Connect → your app → **Xcode Cloud**.
 - **External testers** (people outside your team) additionally need a short
   Beta App Review by Apple before the build reaches them.
 - A build that fails in `ci_post_clone.sh` with
-  *"GOOGLE_SERVICE_INFO_PLIST_BASE64 environment variable is not set"* means step 3's
+  *"GOOGLE_SERVICE_INFO_PLIST_BASE64 environment variable is not set"* means step 4's
   secret is missing or misspelled.
 
 ## Also running: GitHub compile check
