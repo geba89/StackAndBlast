@@ -130,7 +130,7 @@ struct GameView: View {
                                 }
                             }
 
-                            // Shuffle (hidden in Daily Challenge)
+                            // Shuffle and Undo (hidden in Daily Challenge — its pieces are fixed)
                             if viewModel.gameMode != .dailyChallenge {
                                 CoinPowerUpButton(
                                     icon: "shuffle",
@@ -141,6 +141,17 @@ struct GameView: View {
                                     isActive: false
                                 ) {
                                     viewModel.useShuffle()
+                                }
+
+                                CoinPowerUpButton(
+                                    icon: "arrow.uturn.backward",
+                                    remaining: GameConstants.maxUndosPerGame - viewModel.undosUsed,
+                                    maxUses: GameConstants.maxUndosPerGame,
+                                    price: GameConstants.coinUndoPrice,
+                                    isEnabled: viewModel.canUseUndo,
+                                    isActive: false
+                                ) {
+                                    viewModel.useUndo()
                                 }
                             }
                         }

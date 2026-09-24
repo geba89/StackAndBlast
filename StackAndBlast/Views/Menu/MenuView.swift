@@ -9,6 +9,10 @@ struct MenuView: View {
     @State private var showStats = false
     @State private var showAchievements = false
     @State private var showStore = false
+    @State private var showMissions = false
+
+    /// Hold a reference so SwiftUI's Observation tracks mission progress.
+    private let missions = MissionManager.shared
     @AppStorage("lastDailyChallengeDate") private var lastDailyChallengeDate = ""
     @AppStorage("lastDailyBonusDate") private var lastDailyBonusDate = ""
     @AppStorage("hasCompletedTutorial") private var hasCompletedTutorial = false
@@ -177,21 +181,19 @@ struct MenuView: View {
                             selectedMode = .blastRush
                         }
 
-                        // Replay the interactive tutorial any time
-                        Button {
-                            selectedMode = .tutorial
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "questionmark.circle.fill")
-                                    .font(.subheadline)
-                                Text("HOW TO PLAY")
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .fontWeight(.bold)
+                        // Daily missions + replayable tutorial, side by side to save space
+                        HStack(spacing: 12) {
+                            SecondaryMenuButton(
+                                icon: missions.completedCount == missions.missions.count
+                                    ? "checkmark.seal.fill" : "checklist",
+                                title: "MISSIONS",
+                                badge: "\(missions.completedCount)/\(missions.missions.count)"
+                            ) {
+                                showMissions = true
                             }
-                            .foregroundStyle(.white.opacity(0.85))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                            SecondaryMenuButton(icon: "questionmark.circle.fill", title: "HOW TO PLAY", badge: nil) {
+                                selectedMode = .tutorial
+                            }
                         }
 
                         // Daily bonus ad button — only shown when an ad is actually loaded
@@ -241,6 +243,13 @@ struct MenuView: View {
         .fullScreenCover(isPresented: $showStore) {
             StoreView()
         }
+        .sheet(isPresented: $showMissions) {
+            DailyMissionsView()
+        }
+        .onAppear {
+            // New day since the app was last opened? Fresh missions.
+            missions.refreshIfNewDay()
+        }
     }
 
     /// Watch a rewarded ad for 50 bonus coins (once per day).
@@ -258,15 +267,6 @@ struct MenuView: View {
             }
         }
     }
-}
-
-/// The available game modes.
-enum GameMode {
-    case classic
-    case dailyChallenge
-    case blastRush
-    /// Interactive "learn to play" lessons — no score, stats, or leaderboards.
-    case tutorial
 }
 
 // MARK: - Menu Button
@@ -313,6 +313,38 @@ private struct AnimatedTitleView: View {
             withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: false)) {
                 glowPhase = 1.5
             }
+        }
+    }
+}
+
+/// Smaller, subtle menu button (MISSIONS, HOW TO PLAY) with an optional badge like "1/3".
+private struct SecondaryMenuButton: View {
+    let icon: String
+    let title: String
+    let badge: String?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                Text(title)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                if let badge {
+                    Text(badge)
+                        .font(.system(.caption, design: .rounded))
+                        .fontWeight(.heavy)
+                        .foregroundStyle(.yellow)
+                }
+            }
+            .foregroundStyle(.white.opacity(0.85))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
         }
     }
 }

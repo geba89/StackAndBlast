@@ -49,6 +49,16 @@ final class HapticManager {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
+    /// Heartbeat ("lub-dub") when the board is nearly full.
+    func playHeartbeat() {
+        guard isHapticsEnabled else { return }
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.impactOccurred(intensity: 0.9)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            generator.impactOccurred(intensity: 0.5)
+        }
+    }
+
     /// Notification pulse on cascade combos.
     func playCascade() {
         guard isHapticsEnabled else { return }

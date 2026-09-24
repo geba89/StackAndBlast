@@ -31,6 +31,15 @@ enum DailyChallengeTier: String, CaseIterable {
         }
     }
 
+    /// Medal for the shared Daily Challenge summary.
+    var medalEmoji: String {
+        switch self {
+        case .bronze: return "🥉"
+        case .silver: return "🥈"
+        case .gold:   return "🥇"
+        }
+    }
+
     var minimumScore: Int {
         switch self {
         case .bronze: return 0

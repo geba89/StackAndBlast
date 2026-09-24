@@ -17,8 +17,11 @@ struct GameOverView: View {
     let dailyChallengeTier: DailyChallengeTier?
     /// "PLAY AGAIN", or "PLAY CLASSIC" after the (once-a-day) Daily Challenge.
     let playAgainTitle: String
+    /// Whether the last move can be taken back for coins (Classic only).
+    let canUndo: Bool
     let onUseBomb: () -> Void
     let onDoubleScore: () -> Void
+    let onUndo: () -> Void
     let onShare: () -> Void
     let onPlayAgain: () -> Void
     let onMainMenu: () -> Void
@@ -152,6 +155,31 @@ struct GameOverView: View {
                                 ),
                                 in: RoundedRectangle(cornerRadius: 12)
                             )
+                        }
+                    }
+
+                    // UNDO — take back the move that ended the game, for coins
+                    if canUndo {
+                        Button(action: onUndo) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.uturn.backward")
+                                    .font(.subheadline)
+                                Text("UNDO LAST MOVE")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .fontWeight(.bold)
+                                HStack(spacing: 2) {
+                                    Image(systemName: "bitcoinsign.circle.fill")
+                                        .font(.caption)
+                                    Text("\(GameConstants.coinUndoPrice)")
+                                        .font(.system(.caption, design: .rounded))
+                                        .fontWeight(.bold)
+                                }
+                                .foregroundStyle(.yellow)
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
                         }
                     }
 

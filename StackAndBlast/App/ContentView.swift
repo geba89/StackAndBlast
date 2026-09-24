@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var sessionGameCount = 0
     @State private var showDailyReward = false
     @State private var achievementToast: Achievement?
+    @State private var missionToast: DailyMission?
     @Environment(\.scenePhase) private var scenePhase
     /// Day key of the last daily-reward check, to re-check when the app resumes on a new day.
     @State private var lastDailyRewardCheckDay = ""
@@ -42,11 +43,15 @@ struct ContentView: View {
                         coinsEarned: viewModel.coinsEarnedThisGame,
                         dailyChallengeTier: viewModel.dailyChallengeTier,
                         playAgainTitle: viewModel.gameMode == .dailyChallenge ? "PLAY CLASSIC" : "PLAY AGAIN",
+                        canUndo: viewModel.canUseUndo,
                         onUseBomb: {
                             viewModel.watchAdForBomb()
                         },
                         onDoubleScore: {
                             viewModel.watchAdForDoubleScore()
+                        },
+                        onUndo: {
+                            viewModel.useUndo()
                         },
                         onShare: {
                             ShareHelper.shareScoreCard(
@@ -54,7 +59,8 @@ struct ContentView: View {
                                 blasts: viewModel.engine.totalBlasts,
                                 maxCombo: viewModel.engine.maxCombo,
                                 piecesPlaced: viewModel.engine.piecesPlaced,
-                                gameMode: viewModel.gameMode
+                                gameMode: viewModel.gameMode,
+                                dailySummary: viewModel.dailyShareText
                             )
                         },
                         onPlayAgain: {
@@ -88,9 +94,10 @@ struct ContentView: View {
                     .transition(.opacity)
             }
 
-            // Achievement toast overlay
-            if let achievement = achievementToast {
-                VStack {
+            // Toasts: unlocked achievements and completed missions (stacked if both appear).
+            // Purely informational, so touches pass through to the game underneath.
+            VStack(spacing: 8) {
+                if let achievement = achievementToast {
                     AchievementToast(achievement: achievement)
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .onAppear {
@@ -100,10 +107,22 @@ struct ContentView: View {
                                 }
                             }
                         }
-                    Spacer()
                 }
-                .padding(.top, 60)
+                if let mission = missionToast {
+                    MissionToast(mission: mission)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                withAnimation {
+                                    missionToast = nil
+                                }
+                            }
+                        }
+                }
+                Spacer()
             }
+            .padding(.top, 60)
+            .allowsHitTesting(false)
         }
         .animation(.easeInOut(duration: 0.3), value: selectedMode)
         .preferredColorScheme(.dark)
@@ -154,7 +173,9 @@ struct ContentView: View {
         // ...and when the app comes back to the foreground on a new day
         // (iOS can keep the app suspended overnight, so onAppear won't run again)
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active && DailyChallengeDate.key() != lastDailyRewardCheckDay {
+            guard phase == .active else { return }
+            MissionManager.shared.refreshIfNewDay()
+            if DailyChallengeDate.key() != lastDailyRewardCheckDay {
                 checkDailyReward()
             }
         }
@@ -170,6 +191,15 @@ struct ContentView: View {
                 AchievementManager.shared.recentlyUnlocked = nil
             }
         }
+        // ...and for completed daily missions
+        .onChange(of: MissionManager.shared.recentlyCompleted) { _, mission in
+            if let mission {
+                withAnimation {
+                    missionToast = mission
+                }
+                MissionManager.shared.recentlyCompleted = nil
+            }
+        }
     }
 
     private func checkDailyReward() {
@@ -182,6 +212,51 @@ struct ContentView: View {
                 showDailyReward = true
             }
         }
+    }
+}
+
+// MARK: - Mission Toast
+
+/// "Mission complete!" banner, styled like the achievement toast.
+private struct MissionToast: View {
+    let mission: DailyMission
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title2)
+                .foregroundStyle(Color(red: 0.0, green: 0.722, blue: 0.580))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Mission complete!")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(.gray)
+                Text(mission.title)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            HStack(spacing: 4) {
+                Image(systemName: "bitcoinsign.circle.fill")
+                    .foregroundStyle(.yellow)
+                Text("+\(mission.reward)")
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundStyle(.yellow)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: 400)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(red: 0.118, green: 0.153, blue: 0.180))
+                .shadow(color: .black.opacity(0.5), radius: 10)
+        )
+        .padding(.horizontal, 20)
     }
 }
 

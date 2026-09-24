@@ -127,6 +127,12 @@ final class GameScene: SKScene {
         // Start ambient particles for animated skins
         startAmbientParticles()
 
+        // Rebuild the danger frame (if showing) around the re-laid-out grid
+        if dangerFrame != nil {
+            setDangerWarning(false)
+            setDangerWarning(true)
+        }
+
         // Push current engine state if ViewModel is already wired
         // (handles race between didMove, .onAppear, and .onChange ordering)
         if let vm = viewModel {
@@ -1158,6 +1164,37 @@ final class GameScene: SKScene {
         ring.run(SKAction.group([expand, fade])) {
             ring.removeFromParent()
         }
+    }
+
+    // MARK: - Danger Warning
+
+    /// Pulsing red frame around the grid while the board is nearly full.
+    private var dangerFrame: SKShapeNode?
+
+    /// Show or hide the "almost out of room" warning.
+    func setDangerWarning(_ enabled: Bool) {
+        guard enabled else {
+            dangerFrame?.removeFromParent()
+            dangerFrame = nil
+            return
+        }
+        guard dangerFrame == nil else { return }
+
+        let side = CGFloat(GameConstants.gridSize) * cellSize
+        let frame = SKShapeNode(rectOf: CGSize(width: side + 10, height: side + 10), cornerRadius: 10)
+        frame.position = CGPoint(x: gridOrigin.x + side / 2, y: gridOrigin.y - side / 2)
+        frame.fillColor = .clear
+        frame.strokeColor = UIColor(red: 1.0, green: 0.25, blue: 0.2, alpha: 1)
+        frame.lineWidth = 4
+        frame.glowWidth = 4
+        frame.zPosition = 3 // above blocks and ghosts, below the dragged piece
+        frame.alpha = 0
+        frame.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 1.0, duration: 0.45),
+            .fadeAlpha(to: 0.25, duration: 0.45)
+        ])))
+        addChild(frame)
+        dangerFrame = frame
     }
 
     // MARK: - Tutorial Hints

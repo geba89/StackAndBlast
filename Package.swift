@@ -36,6 +36,7 @@ let package = Package(
                 "Engine",
                 "Services/SettingsManager.swift",
                 "Services/CoinManager.swift",
+                "Services/MissionManager.swift",
             ]
         ),
         .testTarget(

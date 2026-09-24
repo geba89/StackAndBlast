@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4785575518ECB2F7417759D5 /* DailyMissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 711CBE9F2B31AF8945A41E3D /* DailyMissionsView.swift */; };
+		CA22372978FB45C8FA806D16 /* MissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0474B63DA41EF6022092C4B9 /* MissionManager.swift */; };
+		3FB5FE063FC8EBDAACA4A45E /* DailyChallengeShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = F621B821F0A0D69014D7BC16 /* DailyChallengeShare.swift */; };
+		7A9AF34EDF49A564AC021F45 /* DailyMission.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECBB7485E9AD45DE129A3B5B /* DailyMission.swift */; };
+		E67EB26D42CF10CE0F0D4FF0 /* GameMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C11A42E1490FD9312A534E6 /* GameMode.swift */; };
 		1AA1B76B021B435403FCC662 /* TutorialLessons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8569D01AE4AB814041C4988A /* TutorialLessons.swift */; };
 		956B8BF9CEFB0A20E9A79784 /* DailyChallengeDate.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2B6645174396711C8FDA7C /* DailyChallengeDate.swift */; };
 		0512834E573C6A359665D939 /* GameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8191F237D5EADE60FD9E2953 /* GameScene.swift */; };
@@ -67,6 +72,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		711CBE9F2B31AF8945A41E3D /* DailyMissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyMissionsView.swift; sourceTree = "<group>"; };
+		0474B63DA41EF6022092C4B9 /* MissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionManager.swift; sourceTree = "<group>"; };
+		F621B821F0A0D69014D7BC16 /* DailyChallengeShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallengeShare.swift; sourceTree = "<group>"; };
+		ECBB7485E9AD45DE129A3B5B /* DailyMission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyMission.swift; sourceTree = "<group>"; };
+		1C11A42E1490FD9312A534E6 /* GameMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameMode.swift; sourceTree = "<group>"; };
 		8569D01AE4AB814041C4988A /* TutorialLessons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialLessons.swift; sourceTree = "<group>"; };
 		EC2B6645174396711C8FDA7C /* DailyChallengeDate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallengeDate.swift; sourceTree = "<group>"; };
 		0E4B34606C9F107E759C97C6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -176,6 +186,9 @@
 		1E30625318DD9CB907582D19 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				F621B821F0A0D69014D7BC16 /* DailyChallengeShare.swift */,
+				ECBB7485E9AD45DE129A3B5B /* DailyMission.swift */,
+				1C11A42E1490FD9312A534E6 /* GameMode.swift */,
 				EC2B6645174396711C8FDA7C /* DailyChallengeDate.swift */,
 				C177F1794EA045DC89D21328 /* BlastEvent.swift */,
 				A900B4DADFC0A78696343DDB /* Block.swift */,
@@ -192,6 +205,7 @@
 		1F1726C2C690F40BE3A4A499 /* DailyReward */ = {
 			isa = PBXGroup;
 			children = (
+				711CBE9F2B31AF8945A41E3D /* DailyMissionsView.swift */,
 				5254FC611E6AB9E8FCBFEEF4 /* DailyRewardPopupView.swift */,
 			);
 			path = DailyReward;
@@ -278,6 +292,7 @@
 		96740C7DEC2F50E8DC1158CF /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				0474B63DA41EF6022092C4B9 /* MissionManager.swift */,
 				8C8B98F1534C790A14FE761E /* AchievementManager.swift */,
 				9004A7DF9DBCD18E17E1D3C6 /* AdManager.swift */,
 				CBE6D38D13F0C2C1F091D03B /* AnalyticsManager.swift */,
@@ -454,6 +469,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4785575518ECB2F7417759D5 /* DailyMissionsView.swift in Sources */,
+				CA22372978FB45C8FA806D16 /* MissionManager.swift in Sources */,
+				3FB5FE063FC8EBDAACA4A45E /* DailyChallengeShare.swift in Sources */,
+				7A9AF34EDF49A564AC021F45 /* DailyMission.swift in Sources */,
+				E67EB26D42CF10CE0F0D4FF0 /* GameMode.swift in Sources */,
 				1AA1B76B021B435403FCC662 /* TutorialLessons.swift in Sources */,
 				956B8BF9CEFB0A20E9A79784 /* DailyChallengeDate.swift in Sources */,
 				72C208A5FF0D9F923D532AC6 /* AchievementManager.swift in Sources */,

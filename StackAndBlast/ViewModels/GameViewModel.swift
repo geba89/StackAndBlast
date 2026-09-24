@@ -230,6 +230,44 @@ final class GameViewModel {
         && gameMode != .dailyChallenge // Shuffle breaks deterministic pieces
     }
 
+    /// Number of undos used this game (max 3).
+    var undosUsed: Int = 0
+
+    /// Seconds the last move added to the Blast Rush clock — taken back by an undo.
+    private var lastMoveTimeBonus: TimeInterval = 0
+
+    /// Whether UNDO is available. Never in the Daily Challenge (fixed pieces) or the
+    /// tutorial; on the game over screen only in Classic, and not after doubling the score.
+    var canUseUndo: Bool {
+        guard engine.canUndo, !isAnimating,
+              undosUsed < GameConstants.maxUndosPerGame,
+              CoinManager.shared.canAfford(GameConstants.coinUndoPrice) else { return false }
+        switch gameMode {
+        case .classic:
+            return engine.state == .playing || (engine.state == .gameOver && !hasDoubledScore && !isBombMode)
+        case .blastRush:
+            return engine.state == .playing
+        case .dailyChallenge, .tutorial:
+            return false
+        }
+    }
+
+    // MARK: - Danger & Share
+
+    /// Whether the board is nearly full (few ways left to place the tray).
+    private(set) var isInDanger = false
+
+    /// Colors of this game's regular blasts, in order (for the Daily Challenge share).
+    private var blastColorsThisGame: [BlockColor] = []
+
+    /// Wordle-style summary for sharing a finished Daily Challenge (nil in other modes).
+    var dailyShareText: String? {
+        guard gameMode == .dailyChallenge else { return nil }
+        return DailyChallengeShare.text(dayKey: dailyChallengeDayKey, score: engine.score,
+                                        bestCombo: engine.maxCombo, medal: dailyChallengeTier?.medalEmoji,
+                                        blastColors: blastColorsThisGame)
+    }
+
     // MARK: - Actions
 
     /// Start a game in any mode. Every new game — from the menu, PLAY AGAIN or
@@ -325,6 +363,7 @@ final class GameViewModel {
         guard let piece = draggedPiece, let origin = hoverPosition else { return }
 
         let goalBeforeMove = engine.currentMinGroupSize
+        lastMoveTimeBonus = 0
         let result = engine.placePiece(piece, at: origin)
 
         guard result.success else {
@@ -368,18 +407,20 @@ final class GameViewModel {
                 self.scene?.isAnimating = false
                 self.currentCombo = 0
                 self.scene?.updateTray(self.engine.tray)
-                self.moveDidFinish(result, goalBeforeMove: goalBeforeMove)
+                self.moveDidFinish(result, piece: piece, goalBeforeMove: goalBeforeMove)
             }
         } else {
             // No blast — just update the grid and tray immediately
             scene?.updateGrid(engine.grid)
             scene?.updateTray(engine.tray)
-            moveDidFinish(result, goalBeforeMove: goalBeforeMove)
+            moveDidFinish(result, piece: piece, goalBeforeMove: goalBeforeMove)
         }
     }
 
     /// Everything that happens once a move (and its animations) is over.
-    private func moveDidFinish(_ result: PlacementResult, goalBeforeMove: Int) {
+    private func moveDidFinish(_ result: PlacementResult, piece: Piece, goalBeforeMove: Int) {
+        recordMissionProgress(for: piece, result: result)
+
         if result.gameOver {
             handleGameOver()
         } else if gameMode == .tutorial {
@@ -387,6 +428,36 @@ final class GameViewModel {
         } else {
             announceMilestones(goalBeforeMove: goalBeforeMove)
         }
+        updateDanger()
+    }
+
+    /// Count a finished move towards the daily missions, and remember its blast colors
+    /// for the Daily Challenge share. Tutorial lessons don't count.
+    private func recordMissionProgress(for piece: Piece, result: PlacementResult) {
+        guard gameMode != .tutorial else { return }
+        let missions = MissionManager.shared
+        missions.record(piece.isPowerUp ? .powerUpUsed : .piecePlaced)
+        for event in result.blastEvents where event.powerUpSource == nil {
+            missions.record(.blast(color: event.groupColor, size: event.groupSize))
+            blastColorsThisGame.append(event.groupColor)
+        }
+        if !result.blastEvents.isEmpty {
+            missions.record(.combo(result.blastEvents.count))
+        }
+        missions.record(.score(engine.score))
+    }
+
+    /// Re-check whether the board is nearly full. The warning (with a heartbeat haptic)
+    /// starts when the player gets into danger and stops once they escape or the game ends.
+    private func updateDanger() {
+        let threshold = GameConstants.dangerPlacementThreshold
+        let inDanger = engine.state == .playing && gameMode != .tutorial
+            && engine.placementOptionCount(limit: threshold + 1) <= threshold
+        if inDanger && !isInDanger {
+            HapticManager.shared.playHeartbeat()
+        }
+        isInDanger = inDanger
+        scene?.setDangerWarning(inDanger)
     }
 
     /// After a move has played out: celebrate beating the previous best (once per game)
@@ -452,8 +523,10 @@ final class GameViewModel {
         )
         AnalyticsManager.shared.logCoinsEarned(amount: coins, source: "gameplay")
 
-        // Check achievements
+        // Check achievements and missions ("Play a game of Blast Rush", ...)
         AchievementManager.shared.checkAchievements()
+        MissionManager.shared.record(.gameFinished(gameMode))
+        updateDanger() // switch the warning off
 
         // Daily challenge reward
         if gameMode == .dailyChallenge {
@@ -558,6 +631,7 @@ final class GameViewModel {
             self.scene?.isAnimating = false
             self.scene?.updateGrid(self.engine.grid)
             self.scene?.updateTray(self.engine.tray)
+            self.updateDanger()
 
             if !result.gameResumed {
                 // Board still too full — game stays over
@@ -604,6 +678,7 @@ final class GameViewModel {
             self.scene?.isAnimating = false
             self.scene?.updateGrid(self.engine.grid)
             self.scene?.updateTray(self.engine.tray)
+            self.updateDanger()
         }
     }
 
@@ -614,9 +689,33 @@ final class GameViewModel {
         shufflesUsed += 1
         engine.shuffleTray()
         scene?.updateTray(engine.tray)
+        updateDanger()
         AudioManager.shared.playPlacement()
         HapticManager.shared.playPlacement()
         AnalyticsManager.shared.logCoinPowerUpUsed(type: "shuffle", price: GameConstants.coinShufflePrice)
+    }
+
+    /// Spend coins to take back the last move. On the Classic game over screen this is
+    /// a second way (besides the bomb) to keep a run alive.
+    func useUndo() {
+        guard canUseUndo, CoinManager.shared.spend(GameConstants.coinUndoPrice) else { return }
+        let wasGameOver = engine.state == .gameOver
+        engine.undoLastMove()
+        undosUsed += 1
+        if wasGameOver {
+            isGameOverHandled = false // the game is back on
+        }
+
+        // Blast Rush: the undone move's time bonus goes too
+        timeRemaining = max(0, timeRemaining - lastMoveTimeBonus)
+        lastMoveTimeBonus = 0
+
+        scene?.updateGrid(engine.grid)
+        scene?.updateTray(engine.tray)
+        updateDanger()
+        AudioManager.shared.playSwap()
+        HapticManager.shared.playPlacement()
+        AnalyticsManager.shared.logCoinPowerUpUsed(type: "undo", price: GameConstants.coinUndoPrice)
     }
 
     // MARK: - Private Helpers
@@ -650,6 +749,11 @@ final class GameViewModel {
         tutorialMoveDone = false
         tutorialLessonIndex = 0
         scene?.clearTutorialTarget()
+        undosUsed = 0
+        lastMoveTimeBonus = 0
+        blastColorsThisGame = []
+        isInDanger = false
+        scene?.setDangerWarning(false)
     }
 
     /// Record lifetime stats for a game the player walked away from (quit or restart).
@@ -712,6 +816,8 @@ final class GameViewModel {
     /// Add bonus time for blasts in Blast Rush mode (GDD: +5s per blast).
     private func addBlastRushTimeBonus(blastCount: Int) {
         guard gameMode == .blastRush else { return }
-        timeRemaining += GameConstants.blastRushTimeBonusPerBlast * Double(blastCount)
+        let bonus = GameConstants.blastRushTimeBonusPerBlast * Double(blastCount)
+        timeRemaining += bonus
+        lastMoveTimeBonus = bonus // an undo takes it back
     }
 }

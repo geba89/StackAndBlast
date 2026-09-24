@@ -98,7 +98,8 @@ enum ShareHelper {
         blasts: Int,
         maxCombo: Int,
         piecesPlaced: Int,
-        gameMode: GameMode
+        gameMode: GameMode,
+        dailySummary: String? = nil
     ) {
         let cardView = ScoreCardView(
             score: score,
@@ -116,7 +117,9 @@ enum ShareHelper {
 
         // TODO: Replace with actual App Store URL
         let appStoreURL = "https://apps.apple.com/app/stack-and-blast/id000000000"
-        let text = "I scored \(score) in Stack & Blast! Can you beat me? \(appStoreURL)"
+        // Daily Challenge: the Wordle-style emoji summary (everyone had the same pieces)
+        let text = dailySummary.map { "\($0)\n\(appStoreURL)" }
+            ?? "I scored \(score) in Stack & Blast! Can you beat me? \(appStoreURL)"
 
         let activityVC = UIActivityViewController(
             activityItems: [image, text],
