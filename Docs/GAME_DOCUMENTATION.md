@@ -1,9 +1,9 @@
 # Stack & Blast - Complete Game Documentation
 
-> **Version:** 1.0.0 (Build 1)
+> **Version:** 1.1.0
 > **Platform:** iOS 17.0+
 > **Bundle ID:** `com.piotrgebski.StackAndBlast`
-> **Last Updated:** 2026-02-16
+> **Last Updated:** 2026-09-24
 
 ---
 
@@ -130,7 +130,9 @@ Each block on the grid has:
 ### 3.4 Piece Placement
 
 1. Player drags a piece from the tray onto the grid
-2. A ghost preview shows placement validity (green = valid, red = invalid)
+2. A ghost preview shows placement validity (green = valid, red = invalid). It also outlines the
+   same-color blocks the piece would connect to and shows the group size against the goal
+   ("7/10"); when the drop would blast, the preview turns gold ("BLAST! 12") with a haptic tick
 3. Piece is rendered above the finger during drag for visibility
 4. On release over a valid position, blocks are placed on the grid
 5. Points awarded: **1 point per cell placed**
@@ -189,7 +191,9 @@ Standard endless puzzle mode. Place pieces, trigger blasts, and score as high as
 | Timer | 60 seconds |
 | Pieces | Deterministic (seeded by date) |
 | End Condition | Timer runs out OR no piece fits |
-| Seed | SplitMix64 RNG with FNV-1a hash of date string |
+| Seed | SplitMix64 RNG with FNV-1a hash of the local day key (`DailyChallengeDate.key()`, always Gregorian + ASCII digits) |
+| Board | Always 9×9, whatever the Grid Size setting |
+| Attempts | One per day — quitting counts; no RESTART; the game over screen offers PLAY CLASSIC |
 
 All players worldwide get the same pieces on the same day. Uses a seeded RNG (SplitMix64) with a seed derived from the current date via FNV-1a 64-bit hash. Completion is tracked per day -- the menu button shows "DAILY COMPLETED" with a checkmark after playing.
 
@@ -214,21 +218,20 @@ For timed modes, the timer updates at 0.1s intervals and displays in `M:SS.T` fo
 
 ### Spawn Rules
 
-- A power-up block spawns on a random empty cell every **8 pieces placed**
-- The power-up block has a random color and a random power-up type
-- Power-up blocks display a pulsing icon overlay on the grid
+- Every 3rd tray contains a **power-up piece**: a single golden cell with a pulsing symbol
+- Drag it onto any cell of the grid to trigger it immediately (it never becomes a block)
 
 ### Power-Up Types
 
 | Type | Symbol | Effect |
 |------|--------|--------|
-| **Color Bomb** | Star (★) | Removes ALL blocks of a random other color from the entire grid |
-| **Row Blast** | Right Arrow (→) | Clears the entire row where the power-up block was located |
-| **Column Blast** | Down Arrow (↓) | Clears the entire column where the power-up block was located |
+| **Color Bomb** | Star (★) | Removes ALL blocks of the most common color on the grid |
+| **Row Blast** | Right Arrow (→) | Clears the entire row where it is dropped |
+| **Column Blast** | Down Arrow (↓) | Clears the entire column where it is dropped |
 
 ### Activation
 
-Power-up effects trigger when the power-up block is included in a qualifying blast group. The power-up effect executes as part of the blast resolution, potentially creating additional cascade opportunities.
+The effect fires as soon as the piece is dropped and scores 20 points per cleared block.
 
 ---
 
@@ -312,6 +315,24 @@ Skins are cosmetic color themes that change the appearance of blocks on the grid
 | 4 | USE THE BOMB | Bomb dropping on 7x7 grid, clearing a 6x6 area |
 
 Each page has a looping SwiftUI animation. Navigation via NEXT/LET'S PLAY button and page dots. Skip button on non-final pages.
+
+### 8.1b Interactive Tutorial
+
+Learn-by-doing lessons (`GameMode.tutorial`) on a 7×7 board with a goal of 5. Each lesson has one
+piece, a glowing target and a hand hint; drops elsewhere are rejected:
+
+| # | Lesson | What happens |
+|---|--------|--------------|
+| 1 | MAKE A BLAST | Connect 5 blue blocks |
+| 2 | PUSH | Neighbors are pushed outward; one is pushed off the edge |
+| 3 | CHAIN REACTION | The push completes a green row (combo ×2) |
+| 4 | POWER-UPS | A Color Bomb clears every pink block |
+| — | YOU'RE READY! | Explains the real GOAL for the player's grid size |
+
+- Starts on the first PLAY for brand-new players (`hasCompletedTutorial` false and no games played)
+- Replay any time with **HOW TO PLAY** on the main menu; skippable; ends in a Classic game
+- No score, stats, leaderboards, pause or clock
+- Lesson boards are in `Engine/TutorialLessons.swift`; `TutorialLessonTests` verifies each outcome
 
 ### 8.2 Main Menu
 
@@ -535,6 +556,8 @@ All data is stored locally in `UserDefaults`. No cloud sync, no user accounts.
 | Key | Description |
 |-----|-------------|
 | `hasSeenOnboarding` | Whether onboarding has been completed |
+| `hasCompletedTutorial` | Whether the interactive tutorial was finished or skipped |
+| `stats_mostPiecesInSingleGame` | Most pieces placed in one game (Speed Demon achievement) |
 | `lastDailyChallengeDate` | Date string (yyyy-MM-dd) of last daily challenge |
 
 ---
@@ -723,7 +746,9 @@ StackShatter/
 
 2. **Dark theme enforced** -- `.preferredColorScheme(.dark)` is set on the root view. The entire UI is designed for dark mode only.
 
-3. **No unit tests** -- No test target or test files exist in the project.
+3. **Engine unit tests** -- `Package.swift` builds the UI-free game logic (Models, Engine, a few services) so
+   `swift test` runs `Tests/StackAndBlastCoreTests` on macOS or Linux. CI (`.github/workflows/ios-ci.yml`)
+   runs them and compiles the app with Xcode on every push; see `Docs/XCODE_CLOUD_SETUP.md` for TestFlight.
 
 4. **No localization** -- All strings are hardcoded in English.
 

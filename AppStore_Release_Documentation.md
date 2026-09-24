@@ -145,6 +145,22 @@ New puzzle game with a twist: blasts push blocks outward, triggering chain react
 
 ## 4. What's New
 
+### Version 1.1 — Learn, Aim, Blast (draft)
+
+```
+Bigger blasts, clearer aim, and a brand-new tutorial!
+
+- NEW: Interactive tutorial — learn blasts, pushes, chain reactions and power-ups by playing (HOW TO PLAY on the menu)
+- NEW: Blast preview — while you drag, see which blocks connect and how close you are to the goal
+- NEW: Floating points for every blast, plus "NEW BEST!" and GOAL-up announcements
+- Your music keeps playing while you play
+- The game pauses automatically when you leave the app
+- The Daily Challenge is now the same 9x9 puzzle for everyone, everywhere
+- Fairer piece mix: small "rescue" pieces show up as often as designed
+- Fixed a crash when changing the grid size from the pause menu
+- Fixed RESTART switching game modes, coin bomb cancellation costing coins, and more
+```
+
 ### Version 1.0 — Initial Release
 
 ```
