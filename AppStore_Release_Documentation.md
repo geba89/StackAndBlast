@@ -153,6 +153,10 @@ Bigger blasts, clearer aim, and a brand-new tutorial!
 - NEW: Interactive tutorial — learn blasts, pushes, chain reactions and power-ups by playing (HOW TO PLAY on the menu)
 - NEW: Blast preview — while you drag, see which blocks connect and how close you are to the goal
 - NEW: Floating points for every blast, plus "NEW BEST!" and GOAL-up announcements
+- NEW: Daily Missions — three fresh goals every day for bonus coins
+- NEW: Undo your last move (coins) — even right after a game over in Classic
+- NEW: Danger warning when you're about to run out of room
+- NEW: Share your Daily Challenge as a spoiler-free emoji summary
 - Your music keeps playing while you play
 - The game pauses automatically when you leave the app
 - The Daily Challenge is now the same 9x9 puzzle for everyone, everywhere

@@ -83,3 +83,7 @@ App Store Connect → your app → **Xcode Cloud**.
 Independently of Xcode Cloud, `.github/workflows/ios-ci.yml` runs on every push:
 the engine unit tests (`swift test`) and an unsigned simulator build with Xcode.
 It needs no Apple account and is free for this public repository.
+
+`.github/workflows/ui-screenshots.yml` additionally opens the menu, the tutorial and a
+Classic game in the iPhone SE, iPhone Pro and iPad simulators and prints each screen as a
+text map in the job log — a quick layout check (what sits where, what overlaps).

@@ -235,6 +235,41 @@ The effect fires as soon as the piece is dropped and scores 20 points per cleare
 
 ---
 
+## 5b. Coin Power-Ups, Danger Warning & Daily Missions
+
+### Coin Power-Ups (in-game HUD)
+
+| Power-Up | Price | Limit | Modes | Effect |
+|----------|-------|-------|-------|--------|
+| 🔥 Bomb | 100 | 1 per game | All | Tap the grid to clear a 6×6 area. Coins are charged when it goes off (cancelling is free) |
+| 🔀 Shuffle | 50 | 3 per game | Classic, Blast Rush | New tray |
+| ↩︎ Undo | 75 | 3 per game | Classic, Blast Rush | Takes back the last placed piece (board, tray, score). Also offered on the Classic game over screen. Blast Rush also takes back that move's time bonus |
+
+Undo is single-level: bombs, shuffle, double score and the clock running out clear it.
+
+### Danger Warning
+
+When the tray's pieces fit in **6 or fewer ways** (`GameConstants.dangerPlacementThreshold`), a pulsing
+red frame surrounds the grid and a heartbeat haptic plays once. Tuned with 150 simulated games: the
+warning appears before 83% of game overs, about twice per game.
+
+### Daily Missions
+
+Three missions a day (easy 30 · medium 50 · hard 80 coins, +70 for completing all three), the same for
+every player on a given day (seeded by the day key). Examples: "Blast 3 blue groups", "Score 1,500 in
+one game", "Get a ×3 combo in one move", "Finish today's Daily Challenge". Progress counts in Classic,
+Blast Rush and the Daily Challenge (not the tutorial); coins are paid the moment a mission completes,
+with a "Mission complete!" toast. The MISSIONS button on the menu shows progress and a countdown to
+the next set. Code: `Models/DailyMission.swift`, `Services/MissionManager.swift`,
+`Views/DailyReward/DailyMissionsView.swift`.
+
+### Daily Challenge Share
+
+After a Daily Challenge, SHARE adds a spoiler-free, Wordle-style summary: medal, score, best combo and
+one colored square per blast (`Models/DailyChallengeShare.swift`).
+
+---
+
 ## 6. Scoring & Progression
 
 ### Points
@@ -558,6 +593,7 @@ All data is stored locally in `UserDefaults`. No cloud sync, no user accounts.
 | `hasSeenOnboarding` | Whether onboarding has been completed |
 | `hasCompletedTutorial` | Whether the interactive tutorial was finished or skipped |
 | `stats_mostPiecesInSingleGame` | Most pieces placed in one game (Speed Demon achievement) |
+| `missions_day` / `missions_progress` / `missions_bonusAwarded` | Today's daily mission progress |
 | `lastDailyChallengeDate` | Date string (yyyy-MM-dd) of last daily challenge |
 
 ---
