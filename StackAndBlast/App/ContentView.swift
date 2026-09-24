@@ -8,6 +8,9 @@ struct ContentView: View {
     @State private var sessionGameCount = 0
     @State private var showDailyReward = false
     @State private var achievementToast: Achievement?
+    @Environment(\.scenePhase) private var scenePhase
+    /// Day key of the last daily-reward check, to re-check when the app resumes on a new day.
+    @State private var lastDailyRewardCheckDay = ""
 
     var body: some View {
         ZStack {
@@ -23,8 +26,9 @@ struct ContentView: View {
                 GameView(viewModel: viewModel)
                     .transition(.opacity)
 
-                // Game over overlay (hide during bomb placement mode)
-                if viewModel.engine.state == .gameOver && !viewModel.isBombMode {
+                // Game over overlay — hidden during bomb placement, and held back until the
+                // final blast animation has played (the engine reports game over instantly)
+                if viewModel.engine.state == .gameOver && !viewModel.isBombMode && !viewModel.isAnimating {
                     GameOverView(
                         score: viewModel.engine.score,
                         maxCombo: viewModel.engine.maxCombo,
@@ -35,6 +39,7 @@ struct ContentView: View {
                         hasDoubledScore: viewModel.hasDoubledScore,
                         coinsEarned: viewModel.coinsEarnedThisGame,
                         dailyChallengeTier: viewModel.dailyChallengeTier,
+                        playAgainTitle: viewModel.gameMode == .dailyChallenge ? "PLAY CLASSIC" : "PLAY AGAIN",
                         onUseBomb: {
                             viewModel.watchAdForBomb()
                         },
@@ -52,7 +57,14 @@ struct ContentView: View {
                         },
                         onPlayAgain: {
                             sessionGameCount += 1
-                            viewModel.startGame(mode: viewModel.gameMode)
+                            if viewModel.gameMode == .dailyChallenge {
+                                // One daily per day: "playing again" used to start a random,
+                                // untimed game that still posted to the daily leaderboard.
+                                // Switching the mode starts Classic via onChange below.
+                                selectedMode = .classic
+                            } else {
+                                viewModel.startGame(mode: viewModel.gameMode)
+                            }
                         },
                         onMainMenu: {
                             sessionGameCount += 1
@@ -95,11 +107,7 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .onChange(of: selectedMode) { _, newMode in
             if let mode = newMode {
-                if mode == .dailyChallenge {
-                    viewModel.startDailyChallenge()
-                } else {
-                    viewModel.startGame(mode: mode)
-                }
+                viewModel.startGame(mode: mode)
             } else {
                 // Returned to menu — check daily reward
                 checkDailyReward()
@@ -133,6 +141,13 @@ struct ContentView: View {
         .onAppear {
             checkDailyReward()
         }
+        // ...and when the app comes back to the foreground on a new day
+        // (iOS can keep the app suspended overnight, so onAppear won't run again)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && DailyChallengeDate.key() != lastDailyRewardCheckDay {
+                checkDailyReward()
+            }
+        }
         .sheet(isPresented: $showDailyReward) {
             DailyRewardPopupView()
         }
@@ -148,6 +163,9 @@ struct ContentView: View {
     }
 
     private func checkDailyReward() {
+        lastDailyRewardCheckDay = DailyChallengeDate.key()
+        // The app may have been suspended for days — make sure the popup shows the right day
+        StreakManager.shared.resetStreakIfDayWasMissed()
         if hasSeenOnboarding && selectedMode == nil && !StreakManager.shared.hasClaimedToday {
             // Small delay to let the view settle
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

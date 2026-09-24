@@ -68,4 +68,12 @@ final class CoinManager {
         default:          return 100
         }
     }
+
+    /// Coins to award at a game over, given how many this game already earned from its score.
+    ///
+    /// After a bomb continue a game ends twice. Awarding `coinsForScore` both times paid the
+    /// score out twice; paying only the difference makes the total match a single game over.
+    static func coinsToAward(forScore score: Int, alreadyAwarded: Int) -> Int {
+        max(0, coinsForScore(score) - alreadyAwarded)
+    }
 }

@@ -73,6 +73,14 @@ enum GameConstants {
     /// Duration of the Daily Challenge mode in seconds.
     static let dailyChallengeDuration: Double = 60.0
 
+    // MARK: - Blast Rush
+
+    /// Starting clock for Blast Rush in seconds.
+    static let blastRushDuration: Double = 90.0
+
+    /// Seconds added to the Blast Rush clock for every blast.
+    static let blastRushTimeBonusPerBlast: Double = 5.0
+
     // MARK: - Power-Ups
 
     /// A power-up piece appears in the tray every N tray generations.

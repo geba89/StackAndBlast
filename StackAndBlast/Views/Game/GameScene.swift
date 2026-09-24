@@ -69,6 +69,10 @@ final class GameScene: SKScene {
     /// Whether animations are playing (blocks touch input).
     var isAnimating: Bool = false
 
+    /// Bumped by `cancelAnimations()`. A blast sequence remembers the generation it
+    /// started in and stops quietly (without calling its completion) once it changes.
+    private var animationGeneration = 0
+
     /// Last position where a drag trail particle was spawned (throttle particle rate).
     private var lastTrailPosition: CGPoint = .zero
 
@@ -126,6 +130,14 @@ final class GameScene: SKScene {
 
     // MARK: - Public API
 
+    /// A new game is starting: abandon any blast/bomb animation still in flight so it
+    /// can't redraw the previous game's board or report back to the new game.
+    func cancelAnimations() {
+        animationGeneration += 1
+        isAnimating = false
+        clearBombPreview()
+    }
+
     /// Update the visual grid to match the engine's grid state.
     /// Diffs current block nodes against the new grid — adds, removes, or repositions as needed.
     func updateGrid(_ grid: [[Block?]]) {
@@ -137,9 +149,11 @@ final class GameScene: SKScene {
         // Collect all blocks currently in the new grid
         var newBlockIDs = Set<UUID>()
 
-        for row in 0..<GameConstants.gridSize {
-            for col in 0..<GameConstants.gridSize {
-                guard let block = grid[row][col] else { continue }
+        // Walk the grid we were given (not GameConstants.gridSize), so a grid of
+        // another size can never index out of range
+        for (row, cells) in grid.enumerated() {
+            for (col, cell) in cells.enumerated() {
+                guard let block = cell else { continue }
                 newBlockIDs.insert(block.id)
 
                 let targetPosition = scenePosition(for: GridPosition(row: row, col: col))
@@ -641,7 +655,8 @@ final class GameScene: SKScene {
         updateGrid(preBlastGrid)
 
         // Process events sequentially
-        animateNextEvent(events: events, index: 0, finalGrid: finalGrid, completion: completion)
+        animateNextEvent(events: events, index: 0, finalGrid: finalGrid,
+                         generation: animationGeneration, completion: completion)
     }
 
     /// Recursively process blast events one at a time.
@@ -649,8 +664,12 @@ final class GameScene: SKScene {
         events: [BlastEvent],
         index: Int,
         finalGrid: [[Block?]],
+        generation: Int,
         completion: @escaping () -> Void
     ) {
+        // A new game started mid-sequence: stop, and don't redraw the old board
+        guard generation == animationGeneration else { return }
+
         guard index < events.count else {
             // All blast events animated — show the final resolved grid
             updateGrid(finalGrid)
@@ -666,18 +685,18 @@ final class GameScene: SKScene {
             HapticManager.shared.playCascade()
         }
 
-        animateSingleBlast(event: event) { [weak self] in
+        animateSingleBlast(event: event, generation: generation) { [weak self] in
             // Brief pause between cascade levels
             self?.run(SKAction.wait(forDuration: 0.15)) {
-                self?.animateNextEvent(events: events, index: index + 1,
-                                       finalGrid: finalGrid, completion: completion)
+                self?.animateNextEvent(events: events, index: index + 1, finalGrid: finalGrid,
+                                       generation: generation, completion: completion)
             }
         }
     }
 
     /// Animate one blast event: detonate → particles → shockwave ring.
     /// If the event has a `powerUpSource`, plays a dedicated power-up animation instead.
-    private func animateSingleBlast(event: BlastEvent, completion: @escaping () -> Void) {
+    private func animateSingleBlast(event: BlastEvent, generation: Int, completion: @escaping () -> Void) {
         if let powerUpType = event.powerUpSource {
             animatePowerUpEffect(event: event, type: powerUpType, completion: completion)
             return
@@ -703,12 +722,9 @@ final class GameScene: SKScene {
         }
 
         // Run detonation on all cleared blocks simultaneously
-        let detonateFinished = DispatchGroup()
         for node in nodesToDetonate {
-            detonateFinished.enter()
             node.run(detonateAction) {
                 node.removeFromParent()
-                detonateFinished.leave()
             }
         }
 
@@ -720,6 +736,8 @@ final class GameScene: SKScene {
         // After detonation, run particles + shockwave
         DispatchQueue.main.asyncAfter(deadline: .now() + GameConstants.detonateFlashDuration + 0.15) { [weak self] in
             guard let self else { completion(); return }
+            // Abandoned by a new game: skip the old blast's effects on the new board
+            guard generation == self.animationGeneration else { return }
 
             // Audio + haptics for blast
             AudioManager.shared.playBlast()
@@ -782,13 +800,10 @@ final class GameScene: SKScene {
             ])
 
             let idsToDetonate = Set(event.clearedBlockIDs)
-            let detonateGroup = DispatchGroup()
 
             for (id, node) in self.blockNodes where idsToDetonate.contains(id) {
-                detonateGroup.enter()
                 node.run(detonateAction) {
                     node.removeFromParent()
-                    detonateGroup.leave()
                 }
                 self.blockNodes.removeValue(forKey: id)
             }
@@ -796,7 +811,10 @@ final class GameScene: SKScene {
             // Particles at each cleared position
             self.spawnExplosionParticles(event: event)
 
-            detonateGroup.notify(queue: .main) {
+            // Continue once the detonation (0.08s + 0.15s) is over. Timed on the scene,
+            // not on the block nodes: a removed node never finishes its actions, which
+            // used to leave the game stuck in `isAnimating` (no more piece dragging).
+            self.run(SKAction.wait(forDuration: 0.23)) {
                 completion()
             }
         }
@@ -958,19 +976,17 @@ final class GameScene: SKScene {
         }
 
         let duration = GameConstants.pushAnimationDuration
-        let pushGroup = DispatchGroup()
+        let offGridDuration: TimeInterval = 0.3
 
         for pushed in event.pushedBlocks {
             guard let node = blockNodes[pushed.blockID] else { continue }
-
-            pushGroup.enter()
 
             if let dest = pushed.to {
                 // Block slides to new position
                 let targetPos = scenePosition(for: dest)
                 let move = SKAction.move(to: targetPos, duration: duration)
                 move.timingMode = .easeOut
-                node.run(move) { pushGroup.leave() }
+                node.run(move)
             } else {
                 // Block pushed off-grid — slide in push direction and fade
                 // Compute push direction from from-position
@@ -986,19 +1002,20 @@ final class GameScene: SKScene {
                 let offscreenX = fromScene.x + (dxDir / mag) * cellSize * 3
                 let offscreenY = fromScene.y + (dyDir / mag) * cellSize * 3
 
-                let slideOut = SKAction.move(to: CGPoint(x: offscreenX, y: offscreenY), duration: 0.3)
+                let slideOut = SKAction.move(to: CGPoint(x: offscreenX, y: offscreenY), duration: offGridDuration)
                 slideOut.timingMode = .easeIn
-                let fade = SKAction.fadeOut(withDuration: 0.3)
+                let fade = SKAction.fadeOut(withDuration: offGridDuration)
 
                 node.run(SKAction.group([slideOut, fade])) {
                     node.removeFromParent()
-                    pushGroup.leave()
                 }
                 blockNodes.removeValue(forKey: pushed.blockID)
             }
         }
 
-        pushGroup.notify(queue: .main) {
+        // Continue when the longest slide is done — timed on the scene (see animatePowerUpEffect)
+        let pushedOffGrid = event.pushedBlocks.contains { $0.to == nil }
+        run(SKAction.wait(forDuration: pushedOffGrid ? offGridDuration : duration)) {
             completion()
         }
     }
@@ -1206,12 +1223,9 @@ final class GameScene: SKScene {
             ])
         ])
 
-        let animGroup = DispatchGroup()
         for node in nodesToExplode {
-            animGroup.enter()
             node.run(explodeAction) {
                 node.removeFromParent()
-                animGroup.leave()
             }
         }
 
@@ -1288,7 +1302,11 @@ final class GameScene: SKScene {
         AudioManager.shared.playBlast()
         HapticManager.shared.playBlast()
 
-        animGroup.notify(queue: .main) {
+        // Continue once the explosion (0.08 + 0.08 + 0.2s) has played — timed on the
+        // scene so it always fires, even if block nodes get removed meanwhile
+        let generation = animationGeneration
+        run(SKAction.wait(forDuration: 0.36)) { [weak self] in
+            guard let self, generation == self.animationGeneration else { return }
             completion()
         }
     }
@@ -1349,48 +1367,55 @@ final class GameScene: SKScene {
             return
         }
 
-        // Hit-test against tray pieces
+        // Hit-test against tray pieces. The generous hit areas of neighboring slots
+        // overlap, and dictionary order is random — so pick the piece whose center is
+        // closest to the finger, not whichever the loop happens to reach first.
+        let hitArea = CGRect(x: -cellSize * 2, y: -cellSize * 2,
+                             width: cellSize * 4, height: cellSize * 4)
+        var closest: (pieceID: UUID, node: SKNode, distanceSquared: CGFloat)?
         for (pieceID, trayNode) in trayPieceNodes {
-            // Use a generous hit area around each tray piece
             let trayLocation = touch.location(in: trayNode)
-            let hitArea = CGRect(x: -cellSize * 2, y: -cellSize * 2,
-                                 width: cellSize * 4, height: cellSize * 4)
-
-            if hitArea.contains(trayLocation),
-               let piece = viewModel?.engine.tray.first(where: { $0.id == pieceID }) {
-                // Start dragging this piece
-                draggedPiece = piece
-
-                // Compute offset from drag node center to cell (0,0)
-                // so grid snapping aligns with the visual piece position
-                let minCol = piece.cells.map(\.col).min() ?? 0
-                let maxCol = piece.cells.map(\.col).max() ?? 0
-                let minRow = piece.cells.map(\.row).min() ?? 0
-                let maxRow = piece.cells.map(\.row).max() ?? 0
-                let pieceWidth = CGFloat(maxCol - minCol + 1)
-                let pieceHeight = CGFloat(maxRow - minRow + 1)
-                dragOriginOffset = CGPoint(
-                    x: -pieceWidth * cellSize / 2 + cellSize / 2,
-                    y: pieceHeight * cellSize / 2 - cellSize / 2
-                )
-
-                // Create a full-size copy of the piece for dragging
-                let dragNode = createDragNode(for: piece)
-                // Offset above finger so the piece is visible
-                dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
-                dragNode.zPosition = 10
-                addChild(dragNode)
-                draggedPieceNode = dragNode
-
-                // Fade out the tray version
-                trayNode.alpha = 0.3
-
-                lastTrailPosition = location
-                viewModel?.beginDrag(piece: piece)
-                AudioManager.shared.playPickup(cellCount: piece.cellCount)
-                HapticManager.shared.playPickup()
-                break
+            guard hitArea.contains(trayLocation) else { continue }
+            // Squared distance is enough for comparing — no square root needed
+            let distanceSquared = trayLocation.x * trayLocation.x + trayLocation.y * trayLocation.y
+            if closest == nil || distanceSquared < closest!.distanceSquared {
+                closest = (pieceID, trayNode, distanceSquared)
             }
+        }
+
+        if let hit = closest,
+           let piece = viewModel?.engine.tray.first(where: { $0.id == hit.pieceID }) {
+            // Start dragging this piece
+            draggedPiece = piece
+
+            // Compute offset from drag node center to cell (0,0)
+            // so grid snapping aligns with the visual piece position
+            let minCol = piece.cells.map(\.col).min() ?? 0
+            let maxCol = piece.cells.map(\.col).max() ?? 0
+            let minRow = piece.cells.map(\.row).min() ?? 0
+            let maxRow = piece.cells.map(\.row).max() ?? 0
+            let pieceWidth = CGFloat(maxCol - minCol + 1)
+            let pieceHeight = CGFloat(maxRow - minRow + 1)
+            dragOriginOffset = CGPoint(
+                x: -pieceWidth * cellSize / 2 + cellSize / 2,
+                y: pieceHeight * cellSize / 2 - cellSize / 2
+            )
+
+            // Create a full-size copy of the piece for dragging
+            let dragNode = createDragNode(for: piece)
+            // Offset above finger so the piece is visible
+            dragNode.position = CGPoint(x: location.x, y: location.y + cellSize * 2)
+            dragNode.zPosition = 10
+            addChild(dragNode)
+            draggedPieceNode = dragNode
+
+            // Fade out the tray version
+            hit.node.alpha = 0.3
+
+            lastTrailPosition = location
+            viewModel?.beginDrag(piece: piece)
+            AudioManager.shared.playPickup(cellCount: piece.cellCount)
+            HapticManager.shared.playPickup()
         }
     }
 
@@ -1840,8 +1865,10 @@ final class GameScene: SKScene {
 
     /// Convert a scene point to a grid position. Returns nil if outside the grid.
     func gridPosition(for point: CGPoint) -> GridPosition? {
-        let col = Int((point.x - gridOrigin.x) / cellSize)
-        let row = Int((gridOrigin.y - point.y) / cellSize)
+        // floor(), not Int(): Int() truncates toward zero, so Int(-0.5) == 0 and points
+        // up to a whole cell left of / above the grid used to snap to column/row 0
+        let col = Int(floor((point.x - gridOrigin.x) / cellSize))
+        let row = Int(floor((gridOrigin.y - point.y) / cellSize))
         let pos = GridPosition(row: row, col: col)
         return pos.isValid ? pos : nil
     }

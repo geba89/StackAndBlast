@@ -33,11 +33,64 @@ final class AudioManager {
     private var powerUpColumnBlastBuffer: AVAudioPCMBuffer?
     private var powerUpColorBombBuffer: AVAudioPCMBuffer?
 
+    /// Notification observers (kept alive for the app's lifetime).
+    private var observers: [NSObjectProtocol] = []
+
     // MARK: - Init
 
     private init() {
+        configureAudioSession()
         setupEngine()
         generateAllBuffers()
+        observeEngineStops()
+    }
+
+    /// Mix with whatever the player is already listening to.
+    ///
+    /// Without this, iOS uses `.soloAmbient`, which STOPS the player's music or
+    /// podcast as soon as the game makes a sound. `.ambient` plays alongside it and,
+    /// like `.soloAmbient`, stays quiet when the ring/silent switch is on silent.
+    private func configureAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+        } catch {
+            print("[AudioManager] Could not set audio session category: \(error.localizedDescription)")
+        }
+    }
+
+    /// iOS stops the engine on audio route changes (e.g. AirPods connecting) and
+    /// interruptions (phone call, Siri). Start it again as soon as that happens.
+    private func observeEngineStops() {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: audioEngine, queue: .main
+        ) { [weak self] _ in
+            _ = self?.ensureEngineRunning()
+        })
+        observers.append(center.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            if rawType == AVAudioSession.InterruptionType.ended.rawValue {
+                _ = self?.ensureEngineRunning()
+            }
+        })
+    }
+
+    /// Make sure the engine is running before a sound is played. Calling `play()` on a
+    /// player while its engine is stopped raises an Objective-C exception ("player
+    /// started when engine not running"), which crashes the app.
+    /// Returns false if the engine can't run right now (e.g. the app is in the background).
+    private func ensureEngineRunning() -> Bool {
+        guard engineReady else { return false }
+        if audioEngine.isRunning { return true }
+        do {
+            audioEngine.prepare()
+            try audioEngine.start()
+            return true
+        } catch {
+            return false
+        }
     }
 
     // MARK: - Public API
@@ -167,7 +220,7 @@ final class AudioManager {
     // MARK: - Playback
 
     private func playBuffer(_ buffer: AVAudioPCMBuffer, volume: Float) {
-        guard engineReady else { return }
+        guard ensureEngineRunning() else { return }
         let player = playerNodes[currentPlayerIndex]
         currentPlayerIndex = (currentPlayerIndex + 1) % playerCount
 

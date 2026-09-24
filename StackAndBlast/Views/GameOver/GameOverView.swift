@@ -11,6 +11,8 @@ struct GameOverView: View {
     let hasDoubledScore: Bool
     let coinsEarned: Int
     let dailyChallengeTier: DailyChallengeTier?
+    /// "PLAY AGAIN", or "PLAY CLASSIC" after the (once-a-day) Daily Challenge.
+    let playAgainTitle: String
     let onUseBomb: () -> Void
     let onDoubleScore: () -> Void
     let onShare: () -> Void
@@ -64,8 +66,10 @@ struct GameOverView: View {
 
                 // Action buttons
                 VStack(spacing: 12) {
-                    // USE BOMB — classic mode only, when ad is loaded and not yet used
-                    if gameMode == .classic && !hasContinued && AdManager.shared.isRewardedAdReady {
+                    // USE BOMB — classic mode only, when ad is loaded and not yet used.
+                    // Hidden once the score is doubled: a doubled score is final, and
+                    // continuing would carry the doubled score into more play.
+                    if gameMode == .classic && !hasContinued && !hasDoubledScore && AdManager.shared.isRewardedAdReady {
                         Button(action: onUseBomb) {
                             HStack(spacing: 8) {
                                 Image(systemName: "flame.fill")
@@ -144,7 +148,7 @@ struct GameOverView: View {
                     }
 
                     Button(action: onPlayAgain) {
-                        Text("PLAY AGAIN")
+                        Text(playAgainTitle)
                             .font(.system(.headline, design: .rounded))
                             .fontWeight(.bold)
                             .foregroundStyle(.white)

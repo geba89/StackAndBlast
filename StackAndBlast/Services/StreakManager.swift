@@ -12,7 +12,9 @@ final class StreakManager {
     static let rewardSchedule = [50, 100, 150, 150, 200, 300, 500]
 
     private let defaults = UserDefaults.standard
-    private let calendar = Calendar.current
+
+    /// Read fresh each time so it follows time-zone changes (`Calendar.current` is a snapshot).
+    private var calendar: Calendar { Calendar.current }
 
     // MARK: - State
 
@@ -41,22 +43,28 @@ final class StreakManager {
     private init() {
         currentStreak = defaults.integer(forKey: "streak_currentStreak")
         lastClaimDate = defaults.object(forKey: "streak_lastClaimDate") as? Date
-
-        // Reset streak if player missed a day
-        if let lastClaim = lastClaimDate {
-            if !calendar.isDateInToday(lastClaim) && !calendar.isDateInYesterday(lastClaim) {
-                // Missed at least one day — reset streak
-                currentStreak = 0
-            }
-        }
+        resetStreakIfDayWasMissed()
     }
 
     // MARK: - Actions
+
+    /// Reset the streak if the player skipped a day since their last claim.
+    ///
+    /// Runs at launch AND before showing/claiming the reward: iOS often keeps an app
+    /// suspended in memory for days, so checking only at launch let players keep
+    /// their streak after missing days.
+    func resetStreakIfDayWasMissed() {
+        guard let lastClaim = lastClaimDate else { return }
+        if !calendar.isDateInToday(lastClaim) && !calendar.isDateInYesterday(lastClaim) {
+            currentStreak = 0
+        }
+    }
 
     /// Claim today's daily reward. Returns the number of coins awarded, or 0 if already claimed.
     @discardableResult
     func claimDailyReward() -> Int {
         guard !hasClaimedToday else { return 0 }
+        resetStreakIfDayWasMissed()
 
         let reward = todayReward
         currentStreak += 1

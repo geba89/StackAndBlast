@@ -5,6 +5,9 @@ import SpriteKit
 struct GameView: View {
     @Bindable var viewModel: GameViewModel
 
+    /// Whether the app is in the foreground (used to auto-pause).
+    @Environment(\.scenePhase) private var scenePhase
+
     /// Persistent SpriteKit scene instance — must NOT be a computed property
     /// or it gets recreated on every SwiftUI re-render, losing all state.
     /// Uses `.resizeFill` so the scene automatically adapts to the actual view size
@@ -107,8 +110,9 @@ struct GameView: View {
                             isEnabled: viewModel.canUseCoinBomb,
                             isActive: viewModel.isCoinBombMode
                         ) {
+                            // Tapping again while targeting backs out (coins are only spent on detonation)
                             if viewModel.isCoinBombMode {
-                                viewModel.isCoinBombMode = false
+                                viewModel.cancelCoinBomb()
                             } else {
                                 viewModel.activateCoinBomb()
                             }
@@ -133,21 +137,41 @@ struct GameView: View {
                     .transition(.opacity)
                 }
 
+                // Targeting hint — after the bomb ad nothing else tells the player what to do
+                if viewModel.isBombMode || viewModel.isCoinBombMode {
+                    HintBanner(
+                        icon: "flame.fill",
+                        text: viewModel.isCoinBombMode
+                            ? "Tap the grid to drop your bomb · tap 🔥 again to cancel"
+                            : "Tap the grid to drop your bomb"
+                    )
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 Spacer()
             }
+            .animation(.easeInOut(duration: 0.2), value: viewModel.isBombMode || viewModel.isCoinBombMode)
 
             // Pause overlay
             if viewModel.isPaused {
                 PauseOverlay(
                     onResume: { viewModel.togglePause() },
                     onSettings: { showSettings = true },
-                    onRestart: { viewModel.startGame() },
+                    // The Daily Challenge is one attempt per day, so no restart there
+                    onRestart: viewModel.canRestart ? { viewModel.restart() } : nil,
                     onQuit: { viewModel.quitToMenu() }
                 )
                 .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.isPaused)
+        // Auto-pause when the app leaves the foreground (call, app switcher, Control Center)
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                viewModel.pauseIfPlaying()
+            }
+        }
         .fullScreenCover(isPresented: $showSettings) {
             SettingsView(onColorblindChanged: {
                 scene.refreshAllBlocks()
@@ -223,7 +247,8 @@ private struct BlastRushTimerLabel: View {
 private struct PauseOverlay: View {
     let onResume: () -> Void
     let onSettings: () -> Void
-    let onRestart: () -> Void
+    /// `nil` hides the RESTART button (Daily Challenge).
+    let onRestart: (() -> Void)?
     let onQuit: () -> Void
 
     var body: some View {
@@ -243,8 +268,10 @@ private struct PauseOverlay: View {
                     PauseButton(title: "SETTINGS", color: Color(red: 0.4, green: 0.4, blue: 0.45)) {
                         onSettings()
                     }
-                    PauseButton(title: "RESTART", color: Color(red: 0.035, green: 0.518, blue: 0.890)) {
-                        onRestart()
+                    if let onRestart {
+                        PauseButton(title: "RESTART", color: Color(red: 0.035, green: 0.518, blue: 0.890)) {
+                            onRestart()
+                        }
                     }
                     PauseButton(title: "QUIT", color: Color(red: 0.424, green: 0.361, blue: 0.906)) {
                         onQuit()
@@ -254,6 +281,30 @@ private struct PauseOverlay: View {
             .frame(maxWidth: 400)
             .padding(32)
         }
+    }
+}
+
+/// Small floating instruction pill (e.g. "Tap the grid to drop your bomb").
+/// Touches pass straight through it to the board underneath.
+private struct HintBanner: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(.orange)
+            Text(text)
+                .font(.system(.subheadline, design: .rounded))
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.black.opacity(0.75), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.orange.opacity(0.6), lineWidth: 1))
+        .padding(.horizontal)
+        .allowsHitTesting(false)
     }
 }
 

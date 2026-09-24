@@ -17,16 +17,12 @@ struct MenuView: View {
 
     /// Whether today's daily challenge has already been completed.
     private var isDailyChallengeCompleted: Bool {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return lastDailyChallengeDate == formatter.string(from: Date())
+        lastDailyChallengeDate == DailyChallengeDate.key()
     }
 
     /// Whether the daily bonus ad has been watched today.
     private var hasDailyBonusToday: Bool {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return lastDailyBonusDate == formatter.string(from: Date())
+        lastDailyBonusDate == DailyChallengeDate.key()
     }
 
     var body: some View {
@@ -237,9 +233,7 @@ struct MenuView: View {
                 if success {
                     CoinManager.shared.earn(50, source: "daily_bonus_ad")
                     AnalyticsManager.shared.logCoinsEarned(amount: 50, source: "daily_bonus_ad")
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyy-MM-dd"
-                    lastDailyBonusDate = formatter.string(from: Date())
+                    lastDailyBonusDate = DailyChallengeDate.key()
                 }
             }
         }

@@ -35,6 +35,11 @@ final class StatsManager {
         didSet { defaults.set(highestSingleGameScore, forKey: "stats_highestSingleGameScore") }
     }
 
+    /// Most pieces placed in a single game (for the "Speed Demon" achievement).
+    private(set) var mostPiecesInSingleGame: Int {
+        didSet { defaults.set(mostPiecesInSingleGame, forKey: "stats_mostPiecesInSingleGame") }
+    }
+
     // MARK: - Init
 
     private init() {
@@ -44,6 +49,7 @@ final class StatsManager {
         totalPiecesPlaced = defaults.integer(forKey: "stats_totalPiecesPlaced")
         highestCombo = defaults.integer(forKey: "stats_highestCombo")
         highestSingleGameScore = defaults.integer(forKey: "stats_highestSingleGameScore")
+        mostPiecesInSingleGame = defaults.integer(forKey: "stats_mostPiecesInSingleGame")
     }
 
     // MARK: - Recording
@@ -57,8 +63,9 @@ final class StatsManager {
     }
 
     /// Update "best of" records. Safe to call multiple times per game (e.g. after bomb continue).
-    func updateBests(score: Int, maxCombo: Int) {
+    func updateBests(score: Int, maxCombo: Int, piecesPlaced: Int) {
         if maxCombo > highestCombo { highestCombo = maxCombo }
         if score > highestSingleGameScore { highestSingleGameScore = score }
+        if piecesPlaced > mostPiecesInSingleGame { mostPiecesInSingleGame = piecesPlaced }
     }
 }

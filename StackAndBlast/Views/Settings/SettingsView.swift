@@ -63,7 +63,7 @@ struct SettingsView: View {
                         }
                         .pickerStyle(.segmented)
 
-                        Text("Takes effect on next new game")
+                        Text("Takes effect on your next game · Daily Challenge is always 9×9")
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(.gray)
                     }

@@ -73,8 +73,9 @@ final class AchievementManager {
                 icon: "bolt.fill",
                 coinReward: 150,
                 condition: {
-                    // Checked at game over with current game stats
-                    stats.totalPiecesPlaced >= 50
+                    // Single-game record — `totalPiecesPlaced` is the lifetime total,
+                    // which unlocked this after two or three ordinary games
+                    stats.mostPiecesInSingleGame >= 50
                 }
             ),
             Achievement(

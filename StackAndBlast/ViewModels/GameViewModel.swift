@@ -40,21 +40,45 @@ final class GameViewModel {
     /// The current game mode.
     var gameMode: GameMode = .classic
 
-    // MARK: - Blast Rush Timer
+    /// RESTART is offered for every mode except the Daily Challenge (one attempt per day).
+    var canRestart: Bool { gameMode != .dailyChallenge }
 
-    /// Time remaining in Blast Rush mode (seconds).
+    // MARK: - Countdown (Blast Rush + Daily Challenge)
+
+    /// Time remaining on the clock (seconds).
     var timeRemaining: TimeInterval = 0
 
-    /// Timer for Blast Rush countdown.
+    /// Timer driving the countdown.
     private var blastRushTimer: Timer?
 
-    // MARK: - Bomb Mode
+    /// When the countdown last ticked (monotonic clock), so each tick subtracts the
+    /// real elapsed time — a `Timer` fires late whenever the main thread is busy.
+    private var lastTimerTick: TimeInterval = 0
+
+    // MARK: - Game Over Bookkeeping
 
     /// Whether the player is in bomb placement mode (after watching ad).
     var isBombMode: Bool = false
 
     /// Whether game-over stats have been recorded for this session (prevent double-counting).
     private var hasRecordedStats = false
+
+    /// Whether the current ending has been processed. A game can report its end twice
+    /// (e.g. the clock runs out while the final blast is still animating).
+    private var isGameOverHandled = false
+
+    /// Coins already paid out for this game's score. A bomb continue ends a game twice;
+    /// the second game over only tops up to the new total.
+    private var coinsAwardedForScore = 0
+
+    /// The day key a Daily Challenge was started on — a run that crosses midnight
+    /// still counts for the day whose pieces it used.
+    private var dailyChallengeDayKey = ""
+
+    /// Bumped on every new game. Animation callbacks remember the generation they
+    /// started in and do nothing if a new game has begun since (e.g. RESTART
+    /// pressed from the pause menu while a cascade was still animating).
+    private var gameGeneration = 0
 
     // MARK: - Double Score
 
@@ -97,52 +121,35 @@ final class GameViewModel {
 
     // MARK: - Actions
 
-    func startGame(mode: GameMode = .classic) {
-        gameMode = mode
-        isPaused = false
-        wantsQuitToMenu = false
-        hasRecordedStats = false
-        hasDoubledScore = false
-        coinsEarnedThisGame = 0
-        dailyChallengeTier = nil
-        coinBombsUsed = 0
-        shufflesUsed = 0
-        isCoinBombMode = false
-        engine.startNewGame()
+    /// Start a game in any mode. Every new game — from the menu, PLAY AGAIN or
+    /// RESTART — goes through here, so no per-game state can leak between games.
+    func startGame(mode: GameMode) {
+        resetForNewGame(mode: mode)
+
+        switch mode {
+        case .classic:
+            engine.startNewGame()
+        case .blastRush:
+            engine.startNewGame()
+            startCountdown(from: GameConstants.blastRushDuration)
+        case .dailyChallenge:
+            dailyChallengeDayKey = DailyChallengeDate.key()
+            engine.startDailyChallenge()
+            startCountdown(from: GameConstants.dailyChallengeDuration)
+        }
+
         scene?.updateGrid(engine.grid)
         scene?.updateTray(engine.tray)
-
-        // Start timers if applicable
-        blastRushTimer?.invalidate()
-        blastRushTimer = nil
-        if mode == .blastRush {
-            timeRemaining = 90
-            startBlastRushTimer()
-        }
 
         AnalyticsManager.shared.logGameStart(mode: mode.analyticsName)
     }
 
-    /// Start a Daily Challenge game (60s timed, deterministic pieces).
-    func startDailyChallenge() {
-        gameMode = .dailyChallenge
-        isPaused = false
-        wantsQuitToMenu = false
-        hasRecordedStats = false
-        hasDoubledScore = false
-        coinsEarnedThisGame = 0
-        dailyChallengeTier = nil
-        coinBombsUsed = 0
-        shufflesUsed = 0
-        isCoinBombMode = false
-        engine.startDailyChallenge()
-        scene?.updateGrid(engine.grid)
-        scene?.updateTray(engine.tray)
-
-        timeRemaining = GameConstants.dailyChallengeDuration
-        startBlastRushTimer() // Reuse the same countdown timer
-
-        AnalyticsManager.shared.logGameStart(mode: "daily_challenge")
+    /// RESTART from the pause menu: a fresh game in the same mode.
+    /// (It used to always start Classic, even from Blast Rush or the Daily Challenge.)
+    func restart() {
+        guard canRestart else { return }
+        recordAbandonedGame()
+        startGame(mode: gameMode)
     }
 
     func togglePause() {
@@ -155,24 +162,23 @@ final class GameViewModel {
         }
     }
 
+    /// Pause automatically when the app leaves the foreground (incoming call, app
+    /// switcher, Control Center) so the clock doesn't keep running behind the player's back.
+    func pauseIfPlaying() {
+        guard engine.state == .playing else { return }
+        engine.pause()
+        isPaused = true
+    }
+
     func quitToMenu() {
         isPaused = false
-        blastRushTimer?.invalidate()
-        blastRushTimer = nil
+        stopCountdown()
+        recordAbandonedGame()
 
-        // Record stats for the partial game before quitting
-        if !hasRecordedStats {
-            hasRecordedStats = true
-            StatsManager.shared.recordGameTotals(
-                score: engine.score,
-                blasts: engine.totalBlasts,
-                piecesPlaced: engine.piecesPlaced
-            )
-            StatsManager.shared.updateBests(
-                score: engine.score,
-                maxCombo: engine.maxCombo
-            )
-            ScoreManager.shared.submitScore(engine.score, mode: gameMode)
+        // Quitting uses up today's Daily Challenge. Otherwise players could quit and
+        // retry the same (deterministic) pieces until they got a perfect run.
+        if gameMode == .dailyChallenge {
+            markDailyChallengePlayed()
         }
 
         wantsQuitToMenu = true
@@ -196,15 +202,15 @@ final class GameViewModel {
 
         let result = engine.placePiece(piece, at: origin)
 
-        guard result.success else { return }
+        guard result.success else {
+            // E.g. the clock ran out mid-drag — put the faded piece back in the tray
+            scene?.updateTray(engine.tray)
+            return
+        }
 
         // Audio + haptic feedback for successful placement
         AudioManager.shared.playPlacement()
         HapticManager.shared.playPlacement()
-
-        if result.gameOver && result.blastEvents.isEmpty {
-            handleGameOver()
-        }
 
         if !result.blastEvents.isEmpty, let preBlastGrid = result.preBlastGrid {
             // Add time bonus in Blast Rush mode
@@ -221,12 +227,14 @@ final class GameViewModel {
                 scene?.showComboOverlay(level: currentCombo)
             }
 
+            let generation = gameGeneration
             scene?.animateBlastSequence(
                 events: result.blastEvents,
                 preBlastGrid: preBlastGrid,
                 finalGrid: engine.grid
             ) { [weak self] in
-                guard let self else { return }
+                // A new game may have started while this was animating — ignore it then
+                guard let self, self.gameGeneration == generation else { return }
                 self.isAnimating = false
                 self.scene?.isAnimating = false
                 self.currentCombo = 0
@@ -239,11 +247,19 @@ final class GameViewModel {
             // No blast — just update the grid and tray immediately
             scene?.updateGrid(engine.grid)
             scene?.updateTray(engine.tray)
+            if result.gameOver {
+                handleGameOver()
+            }
         }
     }
 
     /// Centralized game-over handling: submit score, record stats, earn coins, check achievements.
     private func handleGameOver() {
+        guard !isGameOverHandled else { return }
+        isGameOverHandled = true
+        isCoinBombMode = false
+        stopCountdown()
+
         AudioManager.shared.playGameOver()
         ScoreManager.shared.submitScore(engine.score, mode: gameMode)
         LeaderboardManager.shared.submitScore(engine.score, mode: gameMode)
@@ -260,14 +276,16 @@ final class GameViewModel {
         // Always update "best of" records so post-bomb improvements are captured
         StatsManager.shared.updateBests(
             score: engine.score,
-            maxCombo: engine.maxCombo
+            maxCombo: engine.maxCombo,
+            piecesPlaced: engine.piecesPlaced
         )
         hasRecordedStats = true
 
-        // Award coins based on score
-        let coins = CoinManager.coinsForScore(engine.score)
+        // Award coins based on score — after a bomb continue, only the difference
+        let coins = CoinManager.coinsToAward(forScore: engine.score, alreadyAwarded: coinsAwardedForScore)
+        coinsAwardedForScore += coins
         CoinManager.shared.earn(coins, source: "gameplay")
-        coinsEarnedThisGame = coins
+        coinsEarnedThisGame += coins
 
         // Log game over analytics
         AnalyticsManager.shared.logGameOver(
@@ -284,9 +302,7 @@ final class GameViewModel {
 
         // Daily challenge reward
         if gameMode == .dailyChallenge {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            UserDefaults.standard.set(formatter.string(from: Date()), forKey: "lastDailyChallengeDate")
+            markDailyChallengePlayed()
 
             if let result = DailyChallengeRewardManager.shared.claimReward(score: engine.score) {
                 dailyChallengeTier = result.tier
@@ -304,6 +320,8 @@ final class GameViewModel {
 
     /// Show a rewarded ad, then activate bomb placement mode on success.
     func watchAdForBomb() {
+        // A doubled score is final — continuing would carry the doubled score into more play
+        guard !hasDoubledScore, !engine.hasContinued else { return }
         guard let topVC = AdManager.shared.topViewController() else { return }
 
         let presentAd = { [weak self] in
@@ -348,7 +366,8 @@ final class GameViewModel {
                 // Update high scores with the new doubled score
                 StatsManager.shared.updateBests(
                     score: self.engine.score,
-                    maxCombo: self.engine.maxCombo
+                    maxCombo: self.engine.maxCombo,
+                    piecesPlaced: self.engine.piecesPlaced
                 )
                 ScoreManager.shared.submitScore(self.engine.score, mode: self.gameMode)
                 LeaderboardManager.shared.submitScore(self.engine.score, mode: self.gameMode)
@@ -369,11 +388,17 @@ final class GameViewModel {
         let result = engine.useBomb(at: position)
         guard result.success else { return }
 
+        if result.gameResumed {
+            // The game is back on, so its next ending must be processed again
+            isGameOverHandled = false
+        }
+
         // Animate the bomb explosion
         isAnimating = true
         scene?.isAnimating = true
+        let generation = gameGeneration
         scene?.animateBombExplosion(result: result) { [weak self] in
-            guard let self else { return }
+            guard let self, self.gameGeneration == generation else { return }
             self.isAnimating = false
             self.scene?.isAnimating = false
             self.scene?.updateGrid(self.engine.grid)
@@ -388,13 +413,16 @@ final class GameViewModel {
 
     // MARK: - Coin Power-Up Actions
 
-    /// Activate coin bomb targeting mode — spend coins, then player taps grid to detonate.
+    /// Enter coin-bomb targeting mode — the player then taps the grid to detonate.
+    /// Coins are only charged when the bomb goes off, so backing out is free.
     func activateCoinBomb() {
         guard canUseCoinBomb else { return }
-        guard CoinManager.shared.spend(GameConstants.coinBombPrice) else { return }
-        coinBombsUsed += 1
         isCoinBombMode = true
-        AnalyticsManager.shared.logCoinPowerUpUsed(type: "bomb", price: GameConstants.coinBombPrice)
+    }
+
+    /// Leave targeting mode without using the bomb (tapping the bomb button again).
+    func cancelCoinBomb() {
+        isCoinBombMode = false
     }
 
     /// Place the coin bomb at a grid position during gameplay.
@@ -402,13 +430,21 @@ final class GameViewModel {
         guard isCoinBombMode else { return }
         isCoinBombMode = false
 
+        // Charge now — previously the coins were taken when the button was tapped,
+        // so cancelling (or quitting while targeting) silently burned 100 coins.
+        guard engine.state == .playing, !isAnimating,
+              CoinManager.shared.spend(GameConstants.coinBombPrice) else { return }
+        coinBombsUsed += 1
+        AnalyticsManager.shared.logCoinPowerUpUsed(type: "bomb", price: GameConstants.coinBombPrice)
+
         let result = engine.useCoinBomb(at: position)
         guard result.success else { return }
 
         isAnimating = true
         scene?.isAnimating = true
+        let generation = gameGeneration
         scene?.animateBombExplosion(result: result) { [weak self] in
-            guard let self else { return }
+            guard let self, self.gameGeneration == generation else { return }
             self.isAnimating = false
             self.scene?.isAnimating = false
             self.scene?.updateGrid(self.engine.grid)
@@ -428,27 +464,92 @@ final class GameViewModel {
         AnalyticsManager.shared.logCoinPowerUpUsed(type: "shuffle", price: GameConstants.coinShufflePrice)
     }
 
-    // MARK: - Blast Rush Timer
+    // MARK: - Private Helpers
 
-    private func startBlastRushTimer() {
+    /// Reset every piece of per-game UI state before a new game starts.
+    private func resetForNewGame(mode: GameMode) {
+        gameGeneration += 1 // orphan any animation still running from the last game
+        scene?.cancelAnimations()
+        stopCountdown()
+
+        gameMode = mode
+        isPaused = false
+        wantsQuitToMenu = false
+        isAnimating = false
+        currentCombo = 0
+        draggedPiece = nil
+        hoverPosition = nil
+        isBombMode = false
+        isCoinBombMode = false
+        hasRecordedStats = false
+        isGameOverHandled = false
+        coinsAwardedForScore = 0
+        hasDoubledScore = false
+        coinsEarnedThisGame = 0
+        dailyChallengeTier = nil
+        coinBombsUsed = 0
+        shufflesUsed = 0
+    }
+
+    /// Record lifetime stats for a game the player walked away from (quit or restart).
+    private func recordAbandonedGame() {
+        guard !hasRecordedStats else { return }
+        hasRecordedStats = true
+        StatsManager.shared.recordGameTotals(
+            score: engine.score,
+            blasts: engine.totalBlasts,
+            piecesPlaced: engine.piecesPlaced
+        )
+        StatsManager.shared.updateBests(
+            score: engine.score,
+            maxCombo: engine.maxCombo,
+            piecesPlaced: engine.piecesPlaced
+        )
+        ScoreManager.shared.submitScore(engine.score, mode: gameMode)
+    }
+
+    /// Remember that today's Daily Challenge was played (the menu shows "DAILY COMPLETED").
+    private func markDailyChallengePlayed() {
+        UserDefaults.standard.set(dailyChallengeDayKey, forKey: "lastDailyChallengeDate")
+    }
+
+    // MARK: - Countdown
+
+    private func startCountdown(from seconds: TimeInterval) {
+        timeRemaining = seconds
+        lastTimerTick = ProcessInfo.processInfo.systemUptime
         blastRushTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            guard self.engine.state == .playing else { return }
-
-            self.timeRemaining -= 0.1
-            if self.timeRemaining <= 0 {
-                self.timeRemaining = 0
-                self.blastRushTimer?.invalidate()
-                self.blastRushTimer = nil
-                self.engine.endGame()
-                self.handleGameOver()
-            }
+            self?.tickCountdown()
         }
+    }
+
+    private func tickCountdown() {
+        // Subtract the real time since the last tick, capped so one long stall
+        // (e.g. the app being suspended) can't eat the clock in a single tick
+        let now = ProcessInfo.processInfo.systemUptime
+        let elapsed = min(now - lastTimerTick, 0.25)
+        lastTimerTick = now
+
+        // The clock only runs while playing (not when paused or over)
+        guard engine.state == .playing else { return }
+
+        timeRemaining -= elapsed
+        if timeRemaining <= 0 {
+            timeRemaining = 0
+            stopCountdown()
+            engine.endGame()
+            handleGameOver()
+        }
+    }
+
+    private func stopCountdown() {
+        blastRushTimer?.invalidate()
+        blastRushTimer = nil
     }
 
     /// Add bonus time for blasts in Blast Rush mode (GDD: +5s per blast).
     private func addBlastRushTimeBonus(blastCount: Int) {
         guard gameMode == .blastRush else { return }
-        timeRemaining += 5.0 * Double(blastCount)
+        timeRemaining += GameConstants.blastRushTimeBonusPerBlast * Double(blastCount)
     }
 }
