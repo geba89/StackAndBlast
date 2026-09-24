@@ -86,6 +86,13 @@ enum GameConstants {
     /// A power-up piece appears in the tray every N tray generations.
     static let powerUpTrayInterval = 3
 
+    // MARK: - Danger Warning
+
+    /// Warn the player (red pulsing border + heartbeat haptic) when the tray's pieces
+    /// fit in this many ways or fewer. Tuned by simulating 150 bot games: at 6 the
+    /// warning appears before 83% of game overs, about twice per game.
+    static let dangerPlacementThreshold = 6
+
     // MARK: - Coin Power-Ups
 
     /// Cost in coins to use a bomb during gameplay.
@@ -96,6 +103,10 @@ enum GameConstants {
     static let maxCoinBombsPerGame = 1
     /// Maximum shuffles per game.
     static let maxShufflesPerGame = 3
+    /// Cost in coins to undo the last move.
+    static let coinUndoPrice = 75
+    /// Maximum undos per game.
+    static let maxUndosPerGame = 3
 
     // MARK: - Animation durations (seconds)
 

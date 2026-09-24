@@ -66,6 +66,20 @@ final class GameEngine {
     /// Fixed blast goal for scenarios (`nil` = normal score-based goal).
     private var minGroupSizeOverride: Int?
 
+    /// Everything a move can change, captured just before it (single-level undo).
+    private struct Snapshot {
+        let grid: [[Block?]]
+        let tray: [Piece]
+        let score: Int
+        let maxCombo: Int
+        let totalBlasts: Int
+        let piecesPlaced: Int
+    }
+
+    /// The state before the last piece was placed. Anything else that changes the
+    /// board or score (bombs, shuffle, double score, the clock running out) clears it.
+    private var undoSnapshot: Snapshot?
+
     // MARK: - Dependencies
 
     let pieceGenerator = PieceGenerator()
@@ -133,6 +147,8 @@ final class GameEngine {
             return .failed
         }
 
+        saveUndoSnapshot()
+
         // The goal the player saw when dropping the piece is the one that applies.
         // (Read it BEFORE adding placement points — those could cross a 500-point
         // step and silently raise the goal for this very move.)
@@ -185,16 +201,48 @@ final class GameEngine {
     /// Force end the game (e.g. timer ran out in Blast Rush mode).
     func endGame() {
         state = .gameOver
+        undoSnapshot = nil // time's up — no taking moves back
     }
 
     /// Add bonus points to the current score (e.g. from double-score ad reward).
     func addBonusScore(_ points: Int) {
         score += points
+        undoSnapshot = nil // a doubled score is final
     }
 
     /// Regenerate the tray with new random pieces. Used by the coin-purchased Shuffle power-up.
     func shuffleTray() {
         tray = pieceGenerator.generateTray()
+        undoSnapshot = nil
+    }
+
+    // MARK: - Undo
+
+    /// Whether the last move can be taken back — during play, or right after that
+    /// move ended the game.
+    var canUndo: Bool {
+        undoSnapshot != nil && (state == .playing || state == .gameOver)
+    }
+
+    /// Take back the last placed piece: board, tray, score and counters return to how
+    /// they were before it, and play continues. Only one move can be undone.
+    @discardableResult
+    func undoLastMove() -> Bool {
+        guard canUndo, let snapshot = undoSnapshot else { return false }
+        grid = snapshot.grid
+        tray = snapshot.tray
+        score = snapshot.score
+        maxCombo = snapshot.maxCombo
+        totalBlasts = snapshot.totalBlasts
+        piecesPlaced = snapshot.piecesPlaced
+        undoSnapshot = nil
+        state = .playing
+        return true
+    }
+
+    private func saveUndoSnapshot() {
+        undoSnapshot = Snapshot(grid: grid, tray: tray, score: score, maxCombo: maxCombo,
+                                totalBlasts: totalBlasts, piecesPlaced: piecesPlaced)
     }
 
     /// Use a coin-purchased bomb to clear a 6×6 area during active gameplay.
@@ -205,6 +253,7 @@ final class GameEngine {
         }
 
         let cleared = clearBombArea(around: center)
+        undoSnapshot = nil
 
         return BombResult(
             success: true,
@@ -223,6 +272,7 @@ final class GameEngine {
 
         let cleared = clearBombArea(around: center)
         hasContinued = true
+        undoSnapshot = nil
 
         // Refill tray if empty
         if tray.isEmpty && !isScenario {
@@ -260,6 +310,23 @@ final class GameEngine {
         }
         let positions = piece.absolutePositions(at: origin)
         return positions.allSatisfy { $0.isValid && grid[$0.row][$0.col] == nil }
+    }
+
+    /// How many ways the tray's pieces can be placed right now (each piece × each
+    /// origin where it fits), counting no higher than `limit`. Few options means the
+    /// player is about to run out of moves. A power-up fits anywhere, so it counts as `limit`.
+    func placementOptionCount(limit: Int) -> Int {
+        var count = 0
+        for piece in tray {
+            if piece.isPowerUp { return limit }
+            for row in 0..<GameConstants.gridSize {
+                for col in 0..<GameConstants.gridSize where canPlace(piece, at: GridPosition(row: row, col: col)) {
+                    count += 1
+                    if count >= limit { return limit }
+                }
+            }
+        }
+        return count
     }
 
     /// The block at a given grid position, if any.
@@ -310,6 +377,7 @@ final class GameEngine {
         hasContinued = false
         isScenario = false
         minGroupSizeOverride = nil
+        undoSnapshot = nil
     }
 
     /// End-of-move bookkeeping: refill an empty tray and detect game over.
@@ -405,6 +473,8 @@ final class GameEngine {
     private func activatePowerUp(_ type: PowerUpType, piece: Piece, at origin: GridPosition) -> PlacementResult {
         // Power-up pieces only need the origin cell to be valid
         guard origin.isValid else { return .failed }
+
+        saveUndoSnapshot()
 
         // Lock in the goal before scoring (see placePiece)
         let blastGoal = currentMinGroupSize
