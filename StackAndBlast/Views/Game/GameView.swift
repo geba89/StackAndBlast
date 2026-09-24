@@ -108,57 +108,65 @@ struct GameView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                    // Coin power-up buttons (visible during active play, hidden when paused/game over)
-                    if viewModel.engine.state == .playing && !viewModel.isPaused {
-                        HStack(spacing: 10) {
-                            Spacer()
+                    // Coin power-up buttons — usable during active play only, so they fade out
+                    // when paused or at game over. They keep their space, so the board never moves.
+                    HStack(spacing: 10) {
+                        Spacer()
 
-                            // Coin Bomb
-                            CoinPowerUpButton(
-                                icon: "flame.fill",
-                                remaining: GameConstants.maxCoinBombsPerGame - viewModel.coinBombsUsed,
-                                maxUses: GameConstants.maxCoinBombsPerGame,
-                                price: GameConstants.coinBombPrice,
-                                isEnabled: viewModel.canUseCoinBomb,
-                                isActive: viewModel.isCoinBombMode
-                            ) {
-                                // Tapping again while targeting backs out (coins are only spent on detonation)
-                                if viewModel.isCoinBombMode {
-                                    viewModel.cancelCoinBomb()
-                                } else {
-                                    viewModel.activateCoinBomb()
-                                }
-                            }
-
-                            // Shuffle and Undo (hidden in Daily Challenge — its pieces are fixed)
-                            if viewModel.gameMode != .dailyChallenge {
-                                CoinPowerUpButton(
-                                    icon: "shuffle",
-                                    remaining: GameConstants.maxShufflesPerGame - viewModel.shufflesUsed,
-                                    maxUses: GameConstants.maxShufflesPerGame,
-                                    price: GameConstants.coinShufflePrice,
-                                    isEnabled: viewModel.canUseShuffle,
-                                    isActive: false
-                                ) {
-                                    viewModel.useShuffle()
-                                }
-
-                                CoinPowerUpButton(
-                                    icon: "arrow.uturn.backward",
-                                    remaining: GameConstants.maxUndosPerGame - viewModel.undosUsed,
-                                    maxUses: GameConstants.maxUndosPerGame,
-                                    price: GameConstants.coinUndoPrice,
-                                    isEnabled: viewModel.canUseUndo,
-                                    isActive: false
-                                ) {
-                                    viewModel.useUndo()
-                                }
+                        // Coin Bomb
+                        CoinPowerUpButton(
+                            icon: "flame.fill",
+                            remaining: GameConstants.maxCoinBombsPerGame - viewModel.coinBombsUsed,
+                            maxUses: GameConstants.maxCoinBombsPerGame,
+                            price: GameConstants.coinBombPrice,
+                            isEnabled: viewModel.canUseCoinBomb,
+                            isActive: viewModel.isCoinBombMode
+                        ) {
+                            // Tapping again while targeting backs out (coins are only spent on detonation)
+                            if viewModel.isCoinBombMode {
+                                viewModel.cancelCoinBomb()
+                            } else {
+                                viewModel.activateCoinBomb()
                             }
                         }
-                        .padding(.horizontal)
-                        .padding(.top, 4)
-                        .transition(.opacity)
+
+                        // Shuffle and Undo (hidden in Daily Challenge — its pieces are fixed)
+                        if viewModel.gameMode != .dailyChallenge {
+                            CoinPowerUpButton(
+                                icon: "shuffle",
+                                remaining: GameConstants.maxShufflesPerGame - viewModel.shufflesUsed,
+                                maxUses: GameConstants.maxShufflesPerGame,
+                                price: GameConstants.coinShufflePrice,
+                                isEnabled: viewModel.canUseShuffle,
+                                isActive: false
+                            ) {
+                                viewModel.useShuffle()
+                            }
+
+                            CoinPowerUpButton(
+                                icon: "arrow.uturn.backward",
+                                remaining: GameConstants.maxUndosPerGame - viewModel.undosUsed,
+                                maxUses: GameConstants.maxUndosPerGame,
+                                price: GameConstants.coinUndoPrice,
+                                isEnabled: viewModel.canUseUndo,
+                                isActive: false
+                            ) {
+                                viewModel.useUndo()
+                            }
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    .opacity(showsPowerUps ? 1 : 0)
+                    .allowsHitTesting(showsPowerUps)
+                    .accessibilityHidden(!showsPowerUps)
+                    .animation(.easeInOut(duration: 0.2), value: showsPowerUps)
+                    // Where the HUD ends → the scene lays the grid out just below it
+                    .background(HUDBottomReporter { bottom in
+                        // Not mid-blast: the combo label can stretch the top bar for a moment
+                        guard !viewModel.isAnimating else { return }
+                        scene.setHUDBottom(bottom)
+                    })
 
                     // Targeting hint — after the bomb ad nothing else tells the player what to do
                     if viewModel.isBombMode || viewModel.isCoinBombMode {
@@ -214,6 +222,28 @@ struct GameView: View {
     }
 
     @State private var showSettings = false
+
+    /// Whether the coin power-up row is usable (active play, not paused).
+    private var showsPowerUps: Bool {
+        viewModel.engine.state == .playing && !viewModel.isPaused
+    }
+}
+
+// MARK: - HUD Measurement
+
+/// Reports where the view it's attached to ends, in points from the top of the window
+/// (= the top of the full-screen game scene), whenever that changes.
+private struct HUDBottomReporter: View {
+    let onChange: (CGFloat) -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            let bottom = proxy.frame(in: .global).maxY
+            Color.clear
+                .onAppear { onChange(bottom) }
+                .onChange(of: bottom) { _, newBottom in onChange(newBottom) }
+        }
+    }
 }
 
 // MARK: - Combo Label

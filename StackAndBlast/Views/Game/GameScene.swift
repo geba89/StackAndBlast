@@ -23,9 +23,16 @@ final class GameScene: SKScene {
     /// Grid size the scene was last laid out for — triggers re-layout on change.
     private var layoutGridSize: Int = 0
 
-    /// Space kept free above the grid for the SwiftUI HUD. The tutorial's
-    /// instruction card is taller than the normal HUD, so it reserves more.
-    private var hudReservedHeight: CGFloat = 60
+    /// Height of the SwiftUI HUD from the top of the screen, measured by GameView
+    /// (see `setHUDBottom`). A rough guess until the first measurement arrives.
+    private var hudHeight: CGFloat = 60
+
+    /// Whether the tutorial's instruction card (taller than the HUD) is showing.
+    private var isTutorialLayout = false
+
+    /// Space kept free above the grid for the SwiftUI overlay: the HUD, or the
+    /// tutorial's instruction card.
+    private var hudReservedHeight: CGFloat { isTutorialLayout ? 170 : hudHeight }
 
     // MARK: - Node Layers
 
@@ -138,6 +145,12 @@ final class GameScene: SKScene {
         if let vm = viewModel {
             updateGrid(vm.engine.grid)
             updateTray(vm.engine.tray)
+        }
+
+        // Redraw the tutorial hint (if showing) for the new cell positions — it used to
+        // stay where the first layout put it, e.g. half-size in a corner on iPad
+        if !tutorialTargetCells.isEmpty {
+            showTutorialTarget(cells: tutorialTargetCells)
         }
     }
 
@@ -1205,10 +1218,14 @@ final class GameScene: SKScene {
     /// The animated hand, hidden while the player drags so it doesn't get in the way.
     private weak var tutorialHand: SKNode?
 
+    /// Cells the current lesson highlights — kept so a re-layout can redraw the hint.
+    private var tutorialTargetCells: [GridPosition] = []
+
     /// Make the cells where the tutorial wants the piece dropped glow, and loop a hand
     /// "dragging" from the tray to them.
     func showTutorialTarget(cells: [GridPosition]) {
         clearTutorialTarget()
+        tutorialTargetCells = cells
         guard !cells.isEmpty else { return }
 
         for cell in cells where cell.isValid {
@@ -1267,6 +1284,7 @@ final class GameScene: SKScene {
     func clearTutorialTarget() {
         tutorialNodes.forEach { $0.removeFromParent() }
         tutorialNodes.removeAll()
+        tutorialTargetCells = []
     }
 
     // MARK: - Score Popups & Banners
@@ -2177,7 +2195,7 @@ final class GameScene: SKScene {
     ///
     /// Vertical layout (bottom to top):
     ///   bottom padding(30) + tray center offset(1.25*cell) + tray top half(1.25*cell)
-    ///   + gap(24) + grid(gridSize*cell) + HUD(hudReservedHeight, normally 60)
+    ///   + gap(24) + grid(gridSize*cell) + HUD(hudReservedHeight, measured by GameView)
     /// Solving: 30 + 1.25c + 1.25c + 24 + gridSize*c + HUD = height
     ///          c * (gridSize + 2.5) = height - 54 - HUD
     private func calculateCellSize() -> CGFloat {
@@ -2190,10 +2208,19 @@ final class GameScene: SKScene {
     /// Switch between the normal layout and the tutorial's (more room on top for
     /// the instruction card). Re-lays out the scene only when something changes.
     func setTutorialLayout(_ enabled: Bool) {
-        let height: CGFloat = enabled ? 170 : 60
-        guard height != hudReservedHeight else { return }
-        hudReservedHeight = height
+        guard enabled != isTutorialLayout else { return }
+        isTutorialLayout = enabled
         if view != nil { layoutScene() } // not presented yet → didMove(to:) lays out
+    }
+
+    /// GameView measured where its HUD ends (points from the top of the screen), so
+    /// the grid goes below it. (A fixed 60pt used to let the HUD cover the top row on
+    /// iPad, where the grid is sized by the screen height.)
+    func setHUDBottom(_ bottom: CGFloat) {
+        let height = (bottom + 12).rounded() // + a little room above the grid
+        guard abs(height - hudHeight) >= 1 else { return }
+        hudHeight = height
+        if view != nil && !isTutorialLayout { layoutScene() }
     }
 
     /// Calculate the top-left origin of the grid in scene coordinates.
