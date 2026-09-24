@@ -39,7 +39,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.piotrgebski.StackAndBlast
         PRODUCT_NAME: "Stack & Blast"
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2"
+        DEVELOPMENT_TEAM: 8NKQAWBSBB
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: true
@@ -53,6 +54,7 @@ targets:
       path: StackAndBlast/Info.plist
       properties:
         CFBundleDisplayName: "Stack & Blast"
+        LSApplicationCategoryType: public.app-category.games
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UIApplicationSceneManifest:
