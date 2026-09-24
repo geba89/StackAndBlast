@@ -215,4 +215,20 @@ enum PieceDefinitions {
         // Pentominoes
         plus, uShape, largeLRight, largeLLeft,
     ]
+
+    // MARK: - Spawn weights
+
+    /// How many shapes each category has (1 monomino, 2 dominoes, 6 triominoes, ...).
+    private static let shapeCount: [Category: Int] =
+        Dictionary(grouping: all, by: \.category).mapValues(\.count)
+
+    /// Spawn weight of a single shape: its category's weight split evenly across all
+    /// shapes in that category.
+    ///
+    /// Giving every shape the *full* category weight would multiply a category's
+    /// chance by its number of shapes — 10 tetrominoes vs 1 monomino made 4-cell
+    /// pieces ~56% of all spawns and 1-cell pieces ~1%, instead of 30% and 10%.
+    static func spawnWeight(of template: Template) -> Double {
+        template.category.weight / Double(shapeCount[template.category] ?? 1)
+    }
 }

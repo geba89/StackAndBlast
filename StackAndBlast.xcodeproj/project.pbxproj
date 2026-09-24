@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1AA1B76B021B435403FCC662 /* TutorialLessons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8569D01AE4AB814041C4988A /* TutorialLessons.swift */; };
+		956B8BF9CEFB0A20E9A79784 /* DailyChallengeDate.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2B6645174396711C8FDA7C /* DailyChallengeDate.swift */; };
 		0512834E573C6A359665D939 /* GameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8191F237D5EADE60FD9E2953 /* GameScene.swift */; };
 		0B1B80D97E4DDF7AC293AA68 /* DailyChallengeRewardManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DA143612035E002056B863 /* DailyChallengeRewardManager.swift */; };
 		26FA53B575CE9285435E2EF7 /* StoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEAD0F332D2157A78EAB3A9D /* StoreView.swift */; };
@@ -65,6 +67,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8569D01AE4AB814041C4988A /* TutorialLessons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialLessons.swift; sourceTree = "<group>"; };
+		EC2B6645174396711C8FDA7C /* DailyChallengeDate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyChallengeDate.swift; sourceTree = "<group>"; };
 		0E4B34606C9F107E759C97C6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		11D887B5AE0640E0383901BA /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		13A4414DB770DA4814BF15BB /* PowerUpType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerUpType.swift; sourceTree = "<group>"; };
@@ -172,6 +176,7 @@
 		1E30625318DD9CB907582D19 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				EC2B6645174396711C8FDA7C /* DailyChallengeDate.swift */,
 				C177F1794EA045DC89D21328 /* BlastEvent.swift */,
 				A900B4DADFC0A78696343DDB /* Block.swift */,
 				E655E6759769F9FD4E92B1BC /* GameConstants.swift */,
@@ -226,6 +231,7 @@
 		4B5AF05769FB0298EE3DBB8F /* Engine */ = {
 			isa = PBXGroup;
 			children = (
+				8569D01AE4AB814041C4988A /* TutorialLessons.swift */,
 				6E516E8BC9128118BF11F630 /* BlastResolver.swift */,
 				35410307CB0485E379F242BC /* GameEngine.swift */,
 				62327C330D30E51A4A3090C2 /* PieceGenerator.swift */,
@@ -448,6 +454,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1AA1B76B021B435403FCC662 /* TutorialLessons.swift in Sources */,
+				956B8BF9CEFB0A20E9A79784 /* DailyChallengeDate.swift in Sources */,
 				72C208A5FF0D9F923D532AC6 /* AchievementManager.swift in Sources */,
 				81C4B52D66B2839011324B6F /* AchievementsView.swift in Sources */,
 				D83FE6EA0F54360640D2E01E /* AdManager.swift in Sources */,

@@ -2,8 +2,22 @@ import Foundation
 
 /// Game-wide constants from the GDD.
 enum GameConstants {
-    /// Grid dimensions — reads from user settings (8, 9, 10, or 12).
-    static var gridSize: Int { SettingsManager.shared.gridSize }
+    /// Grid dimensions of the game in progress (8, 9, 10, or 12 — 7 in the tutorial).
+    ///
+    /// This is a snapshot taken when a game starts, NOT a live read of the setting.
+    /// The engine's grid array is created with this size, so if it changed mid-game
+    /// (e.g. from Settings in the pause menu), every loop over the grid would index
+    /// past the end of the array and crash.
+    private(set) static var gridSize: Int = SettingsManager.shared.gridSize
+
+    /// Lock in the grid size for a new game. Called by `GameEngine` when a game starts.
+    static func useGridSize(_ size: Int) {
+        gridSize = size
+    }
+
+    /// The Daily Challenge is always played on the standard 9×9 board, so everyone
+    /// really gets the same puzzle and daily scores are comparable.
+    static let dailyChallengeGridSize = 9
 
     /// Number of pieces presented per tray.
     static let piecesPerTray = 3
@@ -14,8 +28,12 @@ enum GameConstants {
     // MARK: - Blast Threshold (progressive, scaled by grid size)
 
     /// Starting minimum group size to trigger a blast.
-    static var initialMinGroupSize: Int {
-        switch gridSize {
+    static var initialMinGroupSize: Int { initialMinGroupSize(forGridSize: gridSize) }
+
+    /// Starting minimum group size for a given grid size (also used for help texts,
+    /// which describe the player's chosen grid rather than the one in progress).
+    static func initialMinGroupSize(forGridSize size: Int) -> Int {
+        switch size {
         case 8:  return 8
         case 10: return 12
         case 12: return 16

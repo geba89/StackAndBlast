@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// Persists user preferences via UserDefaults.
 /// Manages sound, haptics, colorblind mode, and active skin selection.

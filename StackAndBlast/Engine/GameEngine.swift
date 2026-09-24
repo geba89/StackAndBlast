@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// Result of placing a piece — contains everything the view layer needs for animation.
 struct PlacementResult {
@@ -31,7 +32,7 @@ final class GameEngine {
 
     // MARK: - State
 
-    /// The 9×9 grid. `nil` means the cell is empty.
+    /// The grid (`GameConstants.gridSize` × `GameConstants.gridSize`). `nil` means the cell is empty.
     private(set) var grid: [[Block?]] = Array(
         repeating: Array(repeating: nil, count: GameConstants.gridSize),
         count: GameConstants.gridSize
@@ -58,6 +59,13 @@ final class GameEngine {
     /// Whether the bomb continue has been used this game (max 1 per game).
     private(set) var hasContinued: Bool = false
 
+    /// Whether this is a hand-made scenario (tutorial lesson): when the tray is used
+    /// up it is not refilled — the engine waits for the next scenario instead.
+    private(set) var isScenario: Bool = false
+
+    /// Fixed blast goal for scenarios (`nil` = normal score-based goal).
+    private var minGroupSizeOverride: Int?
+
     // MARK: - Dependencies
 
     let pieceGenerator = PieceGenerator()
@@ -67,34 +75,43 @@ final class GameEngine {
 
     /// Start a new game: reset grid, score, and deal the first tray.
     func startNewGame() {
+        // Lock in the grid size from Settings for this whole game
+        GameConstants.useGridSize(SettingsManager.shared.gridSize)
         pieceGenerator.clearSeed()
-        grid = Array(
-            repeating: Array(repeating: nil, count: GameConstants.gridSize),
-            count: GameConstants.gridSize
-        )
-        score = 0
-        maxCombo = 0
-        totalBlasts = 0
-        piecesPlaced = 0
-        hasContinued = false
+        resetBoard()
         tray = pieceGenerator.generateTray()
         state = .playing
     }
 
     /// Start a Daily Challenge game with deterministic pieces based on today's date.
     func startDailyChallenge() {
-        let seed = PieceGenerator.seedForDate()
-        pieceGenerator.setSeed(seed)
-        grid = Array(
-            repeating: Array(repeating: nil, count: GameConstants.gridSize),
-            count: GameConstants.gridSize
-        )
-        score = 0
-        maxCombo = 0
-        totalBlasts = 0
-        piecesPlaced = 0
-        hasContinued = false
+        // Everyone plays the daily on the same board size, whatever their setting
+        GameConstants.useGridSize(GameConstants.dailyChallengeGridSize)
+        pieceGenerator.setSeed(PieceGenerator.seedForDate())
+        resetBoard()
         tray = pieceGenerator.generateTray()
+        state = .playing
+    }
+
+    /// Load a hand-made board, e.g. for a tutorial lesson or a unit test.
+    ///
+    /// - Parameters:
+    ///   - scenarioGrid: a square grid; each block's `position` must match its cell
+    ///     (`BoardSketch` takes care of that).
+    ///   - scenarioTray: the exact pieces to offer. When they're used up the tray is
+    ///     NOT refilled and the game doesn't end — the caller decides what's next.
+    ///   - minGroupSize: fixed blast goal, or `nil` for the normal score-based goal.
+    ///   - score: starting score (lets tests check score-dependent rules).
+    func startScenario(grid scenarioGrid: [[Block?]], tray scenarioTray: [Piece], minGroupSize: Int?, score startingScore: Int = 0) {
+        precondition(scenarioGrid.allSatisfy { $0.count == scenarioGrid.count }, "Scenario grid must be square")
+        GameConstants.useGridSize(scenarioGrid.count)
+        pieceGenerator.clearSeed()
+        resetBoard()
+        grid = scenarioGrid
+        tray = scenarioTray
+        score = startingScore
+        isScenario = true
+        minGroupSizeOverride = minGroupSize
         state = .playing
     }
 
@@ -116,6 +133,11 @@ final class GameEngine {
             return .failed
         }
 
+        // The goal the player saw when dropping the piece is the one that applies.
+        // (Read it BEFORE adding placement points — those could cross a 500-point
+        // step and silently raise the goal for this very move.)
+        let blastGoal = currentMinGroupSize
+
         // Place blocks on the grid
         for pos in positions {
             grid[pos.row][pos.col] = Block(color: piece.color, position: pos)
@@ -130,27 +152,15 @@ final class GameEngine {
         // Snapshot the grid BEFORE blast resolution (for animation diffing)
         let preBlastGrid = grid
 
-        // Check for line completions and resolve blasts
-        let blastEvents = resolveBlasts()
+        // Find color groups and resolve blasts (including cascades)
+        let blastEvents = resolveBlasts(minGroupSize: blastGoal)
 
         // Track combo as total blast events from this single placement
         if !blastEvents.isEmpty {
             maxCombo = max(maxCombo, blastEvents.count)
         }
 
-        // Refill tray if empty
-        if tray.isEmpty {
-            tray = pieceGenerator.generateTray()
-        }
-
-        // Check for game over
-        let isGameOver: Bool
-        if !canPlaceAnyPiece() {
-            state = .gameOver
-            isGameOver = true
-        } else {
-            isGameOver = false
-        }
+        let isGameOver = finishTurn()
 
         return PlacementResult(
             success: true,
@@ -194,28 +204,12 @@ final class GameEngine {
             return BombResult(success: false, clearedPositions: [], clearedBlockIDs: [], gameResumed: true)
         }
 
-        let minRow = max(center.row - 2, 0)
-        let maxRow = min(center.row + 3, GameConstants.gridSize - 1)
-        let minCol = max(center.col - 2, 0)
-        let maxCol = min(center.col + 3, GameConstants.gridSize - 1)
-
-        var clearedPositions: [GridPosition] = []
-        var clearedBlockIDs: [UUID] = []
-
-        for row in minRow...maxRow {
-            for col in minCol...maxCol {
-                if let block = grid[row][col] {
-                    clearedPositions.append(GridPosition(row: row, col: col))
-                    clearedBlockIDs.append(block.id)
-                    grid[row][col] = nil
-                }
-            }
-        }
+        let cleared = clearBombArea(around: center)
 
         return BombResult(
             success: true,
-            clearedPositions: clearedPositions,
-            clearedBlockIDs: clearedBlockIDs,
+            clearedPositions: cleared.positions,
+            clearedBlockIDs: cleared.blockIDs,
             gameResumed: true
         )
     }
@@ -227,29 +221,11 @@ final class GameEngine {
             return BombResult(success: false, clearedPositions: [], clearedBlockIDs: [], gameResumed: false)
         }
 
-        // 6×6 area: center ± 2 rows, center ± 2 cols (shifted +1 to make even size)
-        let minRow = max(center.row - 2, 0)
-        let maxRow = min(center.row + 3, GameConstants.gridSize - 1)
-        let minCol = max(center.col - 2, 0)
-        let maxCol = min(center.col + 3, GameConstants.gridSize - 1)
-
-        var clearedPositions: [GridPosition] = []
-        var clearedBlockIDs: [UUID] = []
-
-        for row in minRow...maxRow {
-            for col in minCol...maxCol {
-                if let block = grid[row][col] {
-                    clearedPositions.append(GridPosition(row: row, col: col))
-                    clearedBlockIDs.append(block.id)
-                    grid[row][col] = nil
-                }
-            }
-        }
-
+        let cleared = clearBombArea(around: center)
         hasContinued = true
 
         // Refill tray if empty
-        if tray.isEmpty {
+        if tray.isEmpty && !isScenario {
             tray = pieceGenerator.generateTray()
         }
 
@@ -261,16 +237,17 @@ final class GameEngine {
 
         return BombResult(
             success: true,
-            clearedPositions: clearedPositions,
-            clearedBlockIDs: clearedBlockIDs,
+            clearedPositions: cleared.positions,
+            clearedBlockIDs: cleared.blockIDs,
             gameResumed: canResume
         )
     }
 
     // MARK: - Query
 
-    /// Current minimum group size based on score progression (5 → 12).
+    /// Current minimum group size: grows by 1 every 500 points, up to a cap per grid size.
     var currentMinGroupSize: Int {
+        if let fixedGoal = minGroupSizeOverride { return fixedGoal }
         let increases = score / GameConstants.groupSizeIncreaseInterval
         return min(GameConstants.initialMinGroupSize + increases, GameConstants.maxMinGroupSize)
     }
@@ -291,22 +268,102 @@ final class GameEngine {
         return grid[position.row][position.col]
     }
 
+    /// The same-color group a piece would form if dropped at `origin`: the piece's own
+    /// cells plus every block of its color connected to them. Empty if the piece can't
+    /// go there (or is a power-up). Used to preview blasts while dragging.
+    func projectedGroup(for piece: Piece, at origin: GridPosition) -> [GridPosition] {
+        guard !piece.isPowerUp, canPlace(piece, at: origin) else { return [] }
+
+        // Flood fill (depth-first) starting from the piece's cells, which are all
+        // connected and all the same color, walking through matching neighbors.
+        let pieceCells = piece.absolutePositions(at: origin)
+        var visited = Set(pieceCells)
+        var toVisit = pieceCells
+        var group: [GridPosition] = []
+
+        while let current = toVisit.popLast() {
+            group.append(current)
+            for (dRow, dCol) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                let neighbor = GridPosition(row: current.row + dRow, col: current.col + dCol)
+                guard neighbor.isValid,
+                      !visited.contains(neighbor),
+                      grid[neighbor.row][neighbor.col]?.color == piece.color else { continue }
+                visited.insert(neighbor)
+                toVisit.append(neighbor)
+            }
+        }
+        return group
+    }
+
     // MARK: - Private
+
+    /// Clear the board and per-game counters for a new game.
+    private func resetBoard() {
+        grid = Array(
+            repeating: Array(repeating: nil, count: GameConstants.gridSize),
+            count: GameConstants.gridSize
+        )
+        score = 0
+        maxCombo = 0
+        totalBlasts = 0
+        piecesPlaced = 0
+        hasContinued = false
+        isScenario = false
+        minGroupSizeOverride = nil
+    }
+
+    /// End-of-move bookkeeping: refill an empty tray and detect game over.
+    /// Returns whether the game is over.
+    private func finishTurn() -> Bool {
+        if tray.isEmpty {
+            // A scenario waits for its owner to hand out the next pieces
+            if isScenario { return false }
+            tray = pieceGenerator.generateTray()
+        }
+
+        if !canPlaceAnyPiece() {
+            state = .gameOver
+            return true
+        }
+        return false
+    }
+
+    /// Remove every block in the 6×6 bomb area: center −2…+3 rows and columns
+    /// (clamped to the grid). Returns what was cleared, for animation.
+    private func clearBombArea(around center: GridPosition) -> (positions: [GridPosition], blockIDs: [UUID]) {
+        let minRow = max(center.row - 2, 0)
+        let maxRow = min(center.row + 3, GameConstants.gridSize - 1)
+        let minCol = max(center.col - 2, 0)
+        let maxCol = min(center.col + 3, GameConstants.gridSize - 1)
+
+        var clearedPositions: [GridPosition] = []
+        var clearedBlockIDs: [UUID] = []
+
+        for row in minRow...maxRow {
+            for col in minCol...maxCol {
+                if let block = grid[row][col] {
+                    clearedPositions.append(GridPosition(row: row, col: col))
+                    clearedBlockIDs.append(block.id)
+                    grid[row][col] = nil
+                }
+            }
+        }
+        return (clearedPositions, clearedBlockIDs)
+    }
 
     /// Resolve all blast chains until no more color groups qualify.
     /// Returns all blast events in cascade order for animation.
-    private func resolveBlasts() -> [BlastEvent] {
+    private func resolveBlasts(minGroupSize: Int) -> [BlastEvent] {
         var allEvents: [BlastEvent] = []
         var cascadeLevel = 0
 
-        let minGroupSize = currentMinGroupSize
-
         while cascadeLevel < GameConstants.maxCascadeDepth {
-            let events = blastResolver.resolve(grid: &grid, cascadeLevel: cascadeLevel, minGroupSize: minGroupSize)
+            var events = blastResolver.resolve(grid: &grid, cascadeLevel: cascadeLevel, minGroupSize: minGroupSize)
             if events.isEmpty { break }
 
-            for event in events {
-                let blastScore = calculateBlastScore(event: event, cascadeLevel: cascadeLevel)
+            for index in events.indices {
+                let blastScore = calculateBlastScore(event: events[index], cascadeLevel: cascadeLevel)
+                events[index].points = blastScore // shown as a floating "+points" popup
                 score += blastScore
                 totalBlasts += 1
             }
@@ -349,6 +406,9 @@ final class GameEngine {
         // Power-up pieces only need the origin cell to be valid
         guard origin.isValid else { return .failed }
 
+        // Lock in the goal before scoring (see placePiece)
+        let blastGoal = currentMinGroupSize
+
         piecesPlaced += 1
 
         // Remove the power-up piece from the tray
@@ -375,7 +435,7 @@ final class GameEngine {
             }
             guard let targetColor = colorCounts.max(by: { $0.value < $1.value })?.key else {
                 // No blocks on the grid — still consume the piece
-                if tray.isEmpty { tray = pieceGenerator.generateTray() }
+                if tray.isEmpty && !isScenario { tray = pieceGenerator.generateTray() }
                 return PlacementResult(success: true, blastEvents: [], preBlastGrid: nil, gameOver: false)
             }
             effectColor = targetColor
@@ -424,30 +484,19 @@ final class GameEngine {
                 pushedBlocks: [],
                 triggeredPowerUps: [],
                 powerUpSource: type,
-                powerUpOrigin: origin
+                powerUpOrigin: origin,
+                points: clearScore
             ))
         }
 
         // Resolve any cascading blasts caused by the power-up clear
-        let cascadeEvents = resolveBlasts()
+        let cascadeEvents = resolveBlasts(minGroupSize: blastGoal)
         if !cascadeEvents.isEmpty {
             maxCombo = max(maxCombo, cascadeEvents.count)
         }
         allEvents.append(contentsOf: cascadeEvents)
 
-        // Refill tray if empty
-        if tray.isEmpty {
-            tray = pieceGenerator.generateTray()
-        }
-
-        // Check for game over
-        let isGameOver: Bool
-        if !canPlaceAnyPiece() {
-            state = .gameOver
-            isGameOver = true
-        } else {
-            isGameOver = false
-        }
+        let isGameOver = finishTurn()
 
         return PlacementResult(
             success: true,

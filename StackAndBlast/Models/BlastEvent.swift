@@ -42,6 +42,10 @@ struct BlastEvent {
     /// The grid position where the power-up block was (for drawing row/column flash lines).
     let powerUpOrigin: GridPosition?
 
+    /// Points this event scored, cascade multiplier included (for the floating "+points" popup).
+    /// Filled in by `GameEngine` when it scores the event.
+    var points: Int = 0
+
     /// Number of cells cleared in this group.
     var groupSize: Int { clearedPositions.count }
 }

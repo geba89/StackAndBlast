@@ -1,12 +1,12 @@
 import Foundation
 
-/// A position on the 9×9 game grid.
+/// A position on the game grid (`GameConstants.gridSize` cells per side).
 /// Origin (0,0) is top-left; row increases downward, column increases rightward.
 struct GridPosition: Hashable, Codable {
     let row: Int
     let col: Int
 
-    /// Whether this position is within the 9×9 grid bounds.
+    /// Whether this position is within the grid bounds of the game in progress.
     var isValid: Bool {
         row >= 0 && row < GameConstants.gridSize &&
         col >= 0 && col < GameConstants.gridSize

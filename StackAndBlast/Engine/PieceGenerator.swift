@@ -47,14 +47,15 @@ final class PieceGenerator {
         trayCount = 0
     }
 
-    /// Compute a stable seed from a date string using FNV-1a hash.
+    /// Compute a stable seed for the player's local calendar day.
+    static func seedForDate(_ date: Date = Date(), timeZone: TimeZone = .current) -> UInt64 {
+        seedForKey(DailyChallengeDate.key(for: date, timeZone: timeZone))
+    }
+
+    /// Compute a stable seed from a day key ("yyyy-MM-dd") using FNV-1a hash.
     /// Unlike `String.hashValue`, this is deterministic across processes and devices.
-    static func seedForDate(_ date: Date = Date()) -> UInt64 {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone.current
-        let dateString = formatter.string(from: date)
-        return fnv1aHash(dateString)
+    static func seedForKey(_ dayKey: String) -> UInt64 {
+        fnv1aHash(dayKey)
     }
 
     // MARK: - Tray Generation
@@ -87,14 +88,15 @@ final class PieceGenerator {
     // MARK: - Private
 
     /// Pick a random template, optionally requiring a minimum cell count.
-    private func randomTemplate(minCells: Int = 1) -> PieceDefinitions.Template {
+    /// (Internal rather than private so unit tests can check the size distribution.)
+    func randomTemplate(minCells: Int = 1) -> PieceDefinitions.Template {
         let candidates = PieceDefinitions.all.filter { $0.cells.count >= minCells }
         return weightedRandom(from: candidates)
     }
 
-    /// Weighted random selection based on category spawn weights.
+    /// Weighted random selection based on per-shape spawn weights.
     private func weightedRandom(from templates: [PieceDefinitions.Template]) -> PieceDefinitions.Template {
-        let totalWeight = templates.reduce(0.0) { $0 + $1.category.weight }
+        let totalWeight = templates.reduce(0.0) { $0 + PieceDefinitions.spawnWeight(of: $1) }
         let roll: Double
         if var rng = seededRNG {
             roll = Double.random(in: 0..<totalWeight, using: &rng)
@@ -103,9 +105,10 @@ final class PieceGenerator {
             roll = Double.random(in: 0..<totalWeight)
         }
 
+        // Walk the list subtracting weights until the roll "lands" on a shape
         var remaining = roll
         for template in templates {
-            remaining -= template.category.weight
+            remaining -= PieceDefinitions.spawnWeight(of: template)
             if remaining <= 0 {
                 return template
             }
