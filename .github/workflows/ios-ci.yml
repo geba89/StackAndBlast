@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Check out the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Show tool versions
         run: |
@@ -50,6 +50,9 @@ jobs:
             echo "Using placeholder GoogleService-Info.plist"
           fi
 
+      # Like Xcode Cloud, use the committed package lockfile as-is
+      # (-disableAutomaticPackageResolution): the build fails if
+      # StackAndBlast.xcodeproj/.../Package.resolved is missing or stale.
       - name: Build app (iOS Simulator, unsigned)
         run: |
           xcodebuild build \
@@ -59,11 +62,6 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
             -skipMacroValidation \
+            -disableAutomaticPackageResolution \
             -quiet \
             CODE_SIGNING_ALLOWED=NO
-
-      # Xcode Cloud never resolves packages on its own: it needs the lockfile
-      # (Package.resolved) committed. Print the one Xcode produced so it can be.
-      - name: Show Package.resolved
-        if: always()
-        run: cat StackAndBlast.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved || echo "No Package.resolved was produced"
