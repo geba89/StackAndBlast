@@ -1,0 +1,63 @@
+# Continuous integration for Stack & Blast.
+#
+# On every push this runs the engine unit tests (`swift test`) and compiles the
+# iOS app with Xcode for the simulator. That needs no signing or Apple account —
+# it just proves everything builds. (macOS runners are free on public repos.)
+name: iOS CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the run that is still going
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Engine tests + app build
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Show tool versions
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Engine unit tests
+        run: swift test
+
+      # GoogleService-Info.plist (Firebase config) is gitignored, but the Xcode
+      # project lists it as a resource, so the build fails without the file.
+      # Use the real one from a repository secret if it exists, otherwise a
+      # placeholder that is good enough to compile.
+      - name: Provide GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > StackAndBlast/GoogleService-Info.plist
+            echo "Using GoogleService-Info.plist from secrets"
+          else
+            cp .github/ci/GoogleService-Info.placeholder.plist StackAndBlast/GoogleService-Info.plist
+            echo "Using placeholder GoogleService-Info.plist"
+          fi
+
+      - name: Build app (iOS Simulator, unsigned)
+        run: |
+          xcodebuild build \
+            -project StackAndBlast.xcodeproj \
+            -scheme StackAndBlast \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO
