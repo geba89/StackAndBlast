@@ -43,6 +43,17 @@ final class GameViewModel {
     /// RESTART is offered for every mode except the Daily Challenge (one attempt per day).
     var canRestart: Bool { gameMode != .dailyChallenge }
 
+    // MARK: - Personal Best
+
+    /// The player's best score in this mode before this game started.
+    private(set) var bestScoreBeforeGame = 0
+
+    /// Whether the mid-game "NEW BEST!" banner was already shown this game.
+    private var hasCelebratedNewBest = false
+
+    /// Whether this game beats the player's previous best for the mode.
+    var isNewBest: Bool { engine.score > 0 && engine.score > bestScoreBeforeGame }
+
     // MARK: - Countdown (Blast Rush + Daily Challenge)
 
     /// Time remaining on the clock (seconds).
@@ -188,6 +199,12 @@ final class GameViewModel {
         draggedPiece = piece
     }
 
+    /// Whether a piece may be dropped at this origin (the scene's ghost preview and
+    /// drop handling both ask here, so the rules live in one place).
+    func canDrop(_ piece: Piece, at origin: GridPosition) -> Bool {
+        engine.canPlace(piece, at: origin)
+    }
+
     func updateHover(position: GridPosition) {
         hoverPosition = position
     }
@@ -200,6 +217,7 @@ final class GameViewModel {
 
         guard let piece = draggedPiece, let origin = hoverPosition else { return }
 
+        let goalBeforeMove = engine.currentMinGroupSize
         let result = engine.placePiece(piece, at: origin)
 
         guard result.success else {
@@ -241,6 +259,8 @@ final class GameViewModel {
                 self.scene?.updateTray(self.engine.tray)
                 if result.gameOver {
                     self.handleGameOver()
+                } else {
+                    self.announceMilestones(goalBeforeMove: goalBeforeMove)
                 }
             }
         } else {
@@ -249,7 +269,28 @@ final class GameViewModel {
             scene?.updateTray(engine.tray)
             if result.gameOver {
                 handleGameOver()
+            } else {
+                announceMilestones(goalBeforeMove: goalBeforeMove)
             }
+        }
+    }
+
+    /// After a move has played out: celebrate beating the previous best (once per game)
+    /// and explain a GOAL increase. Shown one after the other if both happen at once.
+    private func announceMilestones(goalBeforeMove: Int) {
+        var delay: TimeInterval = 0
+
+        if !hasCelebratedNewBest && bestScoreBeforeGame > 0 && engine.score > bestScoreBeforeGame {
+            hasCelebratedNewBest = true
+            scene?.showNewBestBanner(previousBest: bestScoreBeforeGame)
+            AudioManager.shared.playCascade(level: 3)
+            HapticManager.shared.playCascade()
+            delay = 1.4
+        }
+
+        let goal = engine.currentMinGroupSize
+        if goal > goalBeforeMove {
+            scene?.showGoalRaisedBanner(goal: goal, delay: delay)
         }
     }
 
@@ -473,6 +514,8 @@ final class GameViewModel {
         stopCountdown()
 
         gameMode = mode
+        bestScoreBeforeGame = ScoreManager.shared.highScore(for: mode)
+        hasCelebratedNewBest = false
         isPaused = false
         wantsQuitToMenu = false
         isAnimating = false

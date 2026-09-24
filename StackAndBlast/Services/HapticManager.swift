@@ -43,6 +43,12 @@ final class HapticManager {
         generator.impactOccurred()
     }
 
+    /// Soft tick when a dragged piece moves onto a spot that would trigger a blast.
+    func playSelection() {
+        guard isHapticsEnabled else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
     /// Notification pulse on cascade combos.
     func playCascade() {
         guard isHapticsEnabled else { return }

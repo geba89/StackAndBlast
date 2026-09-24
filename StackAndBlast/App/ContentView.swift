@@ -31,6 +31,8 @@ struct ContentView: View {
                 if viewModel.engine.state == .gameOver && !viewModel.isBombMode && !viewModel.isAnimating {
                     GameOverView(
                         score: viewModel.engine.score,
+                        bestScore: max(ScoreManager.shared.highScore(for: viewModel.gameMode), viewModel.engine.score),
+                        isNewBest: viewModel.isNewBest,
                         maxCombo: viewModel.engine.maxCombo,
                         totalBlasts: viewModel.engine.totalBlasts,
                         piecesPlaced: viewModel.engine.piecesPlaced,

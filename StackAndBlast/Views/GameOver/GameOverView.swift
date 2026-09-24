@@ -3,6 +3,10 @@ import SwiftUI
 /// Score summary screen shown when the game ends.
 struct GameOverView: View {
     let score: Int
+    /// Best score for this mode (including this game).
+    let bestScore: Int
+    /// Whether this game set a new personal best.
+    let isNewBest: Bool
     let maxCombo: Int
     let totalBlasts: Int
     let piecesPlaced: Int
@@ -38,6 +42,25 @@ struct GameOverView: View {
                     Text("\(score)")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundStyle(Color(red: 0.882, green: 0.439, blue: 0.333)) // Coral
+
+                    // Personal best: celebrate a new one, otherwise show the target to beat
+                    if isNewBest {
+                        HStack(spacing: 6) {
+                            Image(systemName: "trophy.fill")
+                            Text("NEW BEST!")
+                                .fontWeight(.heavy)
+                        }
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Color.yellow.opacity(0.15), in: Capsule())
+                    } else if bestScore > 0 {
+                        Text("BEST \(bestScore)")
+                            .font(.system(.caption, design: .rounded))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.gray)
+                    }
                 }
 
                 // Coin earnings

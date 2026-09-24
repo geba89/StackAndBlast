@@ -62,6 +62,9 @@ final class GameScene: SKScene {
     /// The current grid position the dragged piece snaps to.
     private var currentHoverPosition: GridPosition?
 
+    /// Whether the current drop preview would trigger a blast (for the haptic tick).
+    private var previewWillBlast = false
+
     /// Offset from drag node center to cell (0,0) position.
     /// Computed once per drag to align visual position with grid placement.
     private var dragOriginOffset: CGPoint = .zero
@@ -752,6 +755,9 @@ final class GameScene: SKScene {
             // Phase 4: CIRCULAR SHOCKWAVE from group center
             self.spawnShockwaveRing(event: event)
 
+            // Floating "+points" for this blast
+            self.spawnScorePopup(event: event)
+
             // Phase 5: PUSH adjacent blocks outward
             self.animatePushedBlocks(event: event) {
                 completion()
@@ -810,6 +816,7 @@ final class GameScene: SKScene {
 
             // Particles at each cleared position
             self.spawnExplosionParticles(event: event)
+            self.spawnScorePopup(event: event)
 
             // Continue once the detonation (0.08s + 0.15s) is over. Timed on the scene,
             // not on the block nodes: a removed node never finishes its actions, which
@@ -1147,6 +1154,118 @@ final class GameScene: SKScene {
         ring.run(SKAction.group([expand, fade])) {
             ring.removeFromParent()
         }
+    }
+
+    // MARK: - Score Popups & Banners
+
+    /// Floating "+240" rising from a blast's center. Chain reactions also show their
+    /// multiplier ("CHAIN ×4") so players see why cascades are worth so much.
+    private func spawnScorePopup(event: BlastEvent) {
+        guard event.points > 0, !event.clearedPositions.isEmpty else { return }
+
+        let avgRow = CGFloat(event.clearedPositions.map(\.row).reduce(0, +)) / CGFloat(event.groupSize)
+        let avgCol = CGFloat(event.clearedPositions.map(\.col).reduce(0, +)) / CGFloat(event.groupSize)
+        let center = CGPoint(x: gridOrigin.x + avgCol * cellSize + cellSize / 2,
+                             y: gridOrigin.y - avgRow * cellSize - cellSize / 2)
+
+        let popup = SKNode()
+        popup.position = center
+        popup.zPosition = 19 // just below the COMBO text (20)
+        popup.setScale(0.6)
+
+        let fontSize: CGFloat = event.cascadeLevel > 0 ? 30 : 24
+        // A dark copy slightly offset acts as a drop shadow, for readability on any board
+        for (offset, color) in [(CGPoint(x: 1.5, y: -1.5), UIColor.black.withAlphaComponent(0.6)),
+                                (CGPoint.zero, UIColor.white)] {
+            let label = SKLabelNode(text: "+\(event.points)")
+            label.fontName = "HelveticaNeue-Bold"
+            label.fontSize = fontSize
+            label.fontColor = color
+            label.verticalAlignmentMode = .center
+            label.position = offset
+            popup.addChild(label)
+        }
+
+        if event.cascadeLevel > 0 {
+            let chain = SKLabelNode(text: "CHAIN ×\(1 << event.cascadeLevel)")
+            chain.fontName = "HelveticaNeue-Bold"
+            chain.fontSize = 13
+            chain.fontColor = previewGold
+            chain.verticalAlignmentMode = .top
+            chain.position = CGPoint(x: 0, y: -fontSize * 0.6)
+            popup.addChild(chain)
+        }
+
+        addChild(popup)
+
+        // Pop in, float upward, fade away
+        let pop = SKAction.scale(to: 1.0, duration: 0.12)
+        pop.timingMode = .easeOut
+        let rise = SKAction.moveBy(x: 0, y: cellSize * 1.5, duration: 0.8)
+        rise.timingMode = .easeOut
+        let fade = SKAction.sequence([.wait(forDuration: 0.45), .fadeOut(withDuration: 0.35)])
+        popup.run(.sequence([pop, .group([rise, fade]), .removeFromParent()]))
+    }
+
+    /// Celebrate beating the player's previous best score for this mode.
+    func showNewBestBanner(previousBest: Int, delay: TimeInterval = 0) {
+        showBanner(title: "NEW BEST!", subtitle: "Previous best: \(previousBest)",
+                   color: previewGold, delay: delay)
+    }
+
+    /// Explain why the GOAL number just went up.
+    func showGoalRaisedBanner(goal: Int, delay: TimeInterval = 0) {
+        showBanner(title: "GOAL \(goal)", subtitle: "Blasts now need \(goal) connected blocks",
+                   color: UIColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 1), delay: delay)
+    }
+
+    /// Big announcement card in the middle of the grid that pops in, holds, and fades.
+    private func showBanner(title: String, subtitle: String?, color: UIColor, delay: TimeInterval) {
+        let gridWidth = CGFloat(GameConstants.gridSize) * cellSize
+        let card = SKNode()
+        card.position = CGPoint(x: gridOrigin.x + gridWidth / 2,
+                                y: gridOrigin.y - gridWidth / 2)
+        card.zPosition = 21 // above the COMBO text
+        card.alpha = 0
+        card.setScale(0.6)
+
+        let titleLabel = SKLabelNode(text: title)
+        titleLabel.fontName = "HelveticaNeue-Bold"
+        titleLabel.fontSize = 34
+        titleLabel.fontColor = color
+        titleLabel.verticalAlignmentMode = .center
+        titleLabel.position = CGPoint(x: 0, y: subtitle == nil ? 0 : 12)
+        card.addChild(titleLabel)
+
+        if let subtitle {
+            let subtitleLabel = SKLabelNode(text: subtitle)
+            subtitleLabel.fontName = "HelveticaNeue-Medium"
+            subtitleLabel.fontSize = 14
+            subtitleLabel.fontColor = .white
+            subtitleLabel.verticalAlignmentMode = .center
+            subtitleLabel.position = CGPoint(x: 0, y: -20)
+            card.addChild(subtitleLabel)
+        }
+
+        // Dark backing so the text reads well over a busy board
+        let backing = SKShapeNode(rectOf: CGSize(width: min(gridWidth * 0.9, 340),
+                                                 height: subtitle == nil ? 58 : 84),
+                                  cornerRadius: 16)
+        backing.fillColor = UIColor.black.withAlphaComponent(0.65)
+        backing.strokeColor = color.withAlphaComponent(0.7)
+        backing.lineWidth = 2
+        backing.zPosition = -1
+        card.addChild(backing)
+
+        addChild(card)
+        let appear = SKAction.group([.fadeIn(withDuration: 0.15), .scale(to: 1.0, duration: 0.2)])
+        card.run(.sequence([
+            .wait(forDuration: delay),
+            appear,
+            .wait(forDuration: 1.0),
+            .fadeOut(withDuration: 0.3),
+            .removeFromParent()
+        ]))
     }
 
     // MARK: - Combo Overlay
@@ -1487,7 +1606,7 @@ final class GameScene: SKScene {
 
         guard let piece = draggedPiece else { return }
 
-        if let hoverPos = currentHoverPosition, viewModel?.engine.canPlace(piece, at: hoverPos) == true {
+        if let hoverPos = currentHoverPosition, viewModel?.canDrop(piece, at: hoverPos) == true {
             // Valid placement — execute it
             viewModel?.endDrag()
         } else {
@@ -1570,7 +1689,10 @@ final class GameScene: SKScene {
         }
         ghostNodes.removeAll()
 
-        guard let origin = position else { return }
+        guard let origin = position else {
+            previewWillBlast = false
+            return
+        }
 
         // Power-up pieces: only need the single origin cell to be valid
         if piece.isPowerUp {
@@ -1591,29 +1713,102 @@ final class GameScene: SKScene {
         }
 
         let positions = piece.absolutePositions(at: origin)
-        let isValid = positions.allSatisfy {
-            $0.isValid && viewModel?.engine.grid[$0.row][$0.col] == nil
+        let isValid = viewModel?.canDrop(piece, at: origin) ?? false
+
+        // Blast preview: the same-color group this drop would form, and whether it's
+        // big enough to blast. Makes the "connect N blocks" goal visible while aiming.
+        let group = isValid ? (viewModel?.engine.projectedGroup(for: piece, at: origin) ?? []) : []
+        let goal = viewModel?.engine.currentMinGroupSize ?? 0
+        let willBlast = isValid && group.count >= goal
+
+        let tint: UIColor
+        if willBlast {
+            tint = previewGold
+        } else if isValid {
+            tint = .green
+        } else {
+            tint = .red
         }
-
-        let ghostColor: UIColor = isValid
-            ? UIColor.green.withAlphaComponent(0.25)
-            : UIColor.red.withAlphaComponent(0.25)
-
-        let borderColor: UIColor = isValid
-            ? UIColor.green.withAlphaComponent(0.5)
-            : UIColor.red.withAlphaComponent(0.5)
 
         for pos in positions where pos.isValid {
             let inset: CGFloat = 1.0
             let ghostSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
             let ghost = SKShapeNode(rectOf: ghostSize, cornerRadius: blockCornerRadius)
-            ghost.fillColor = ghostColor
-            ghost.strokeColor = borderColor
-            ghost.lineWidth = 1.0
+            ghost.fillColor = tint.withAlphaComponent(willBlast ? 0.4 : 0.25)
+            ghost.strokeColor = tint.withAlphaComponent(willBlast ? 0.9 : 0.5)
+            ghost.lineWidth = willBlast ? 2.0 : 1.0
             ghost.position = scenePosition(for: pos)
             ghost.zPosition = 2
             addChild(ghost)
             ghostNodes.append(ghost)
+        }
+
+        if isValid {
+            // Outline the blocks already on the board that the piece would connect to
+            let pieceCells = Set(positions)
+            for pos in group where !pieceCells.contains(pos) {
+                let outline = SKShapeNode(rectOf: CGSize(width: cellSize - 3, height: cellSize - 3),
+                                          cornerRadius: blockCornerRadius)
+                outline.fillColor = willBlast ? previewGold.withAlphaComponent(0.25) : .clear
+                outline.strokeColor = willBlast ? previewGold : UIColor.white.withAlphaComponent(0.8)
+                outline.lineWidth = 2.0
+                outline.position = scenePosition(for: pos)
+                outline.zPosition = 2 // above blocks (1)
+                addChild(outline)
+                ghostNodes.append(outline)
+            }
+
+            showGroupSizeBadge(size: group.count, goal: goal, willBlast: willBlast, pieceCells: positions)
+        }
+
+        // A soft tick the moment the drop point starts making a blast
+        if willBlast && !previewWillBlast {
+            HapticManager.shared.playSelection()
+        }
+        previewWillBlast = willBlast
+    }
+
+    /// Gold used by the blast preview.
+    private let previewGold = UIColor(red: 1.0, green: 0.78, blue: 0.2, alpha: 1)
+
+    /// Small pill above the piece: "7/10" while building, "BLAST! 12" when it will blast.
+    private func showGroupSizeBadge(size: Int, goal: Int, willBlast: Bool, pieceCells: [GridPosition]) {
+        guard let topRow = pieceCells.map(\.row).min() else { return }
+        let columns = pieceCells.map(\.col)
+        let centerCol = CGFloat(columns.min()! + columns.max()!) / 2
+
+        // Just above the piece's top edge, but never higher than slightly above
+        // the grid (the SwiftUI HUD sits over the scene up there)
+        let x = gridOrigin.x + centerCol * cellSize + cellSize / 2
+        let y = min(gridOrigin.y - CGFloat(topRow) * cellSize + cellSize * 0.45,
+                    gridOrigin.y + cellSize * 0.5)
+
+        let text = willBlast ? "BLAST! \(size)" : "\(size)/\(goal)"
+        let label = SKLabelNode(text: text)
+        label.fontName = "HelveticaNeue-Bold"
+        label.fontSize = max(13, cellSize * 0.4)
+        label.fontColor = willBlast ? UIColor(red: 0.2, green: 0.12, blue: 0.0, alpha: 1) : .white
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+
+        let padding = label.fontSize * 0.6
+        let pill = SKShapeNode(rectOf: CGSize(width: label.frame.width + padding * 2,
+                                              height: label.fontSize + padding),
+                               cornerRadius: (label.fontSize + padding) / 2)
+        pill.fillColor = willBlast ? previewGold : UIColor.black.withAlphaComponent(0.7)
+        pill.strokeColor = willBlast ? .white : previewGold.withAlphaComponent(0.6)
+        pill.lineWidth = 1.0
+        pill.position = CGPoint(x: x, y: y)
+        pill.zPosition = 11 // above the dragged piece (10)
+        pill.addChild(label)
+        addChild(pill)
+        ghostNodes.append(pill)
+
+        if willBlast {
+            pill.run(.repeatForever(.sequence([
+                .scale(to: 1.1, duration: 0.25),
+                .scale(to: 1.0, duration: 0.25)
+            ])))
         }
     }
 
@@ -1760,6 +1955,7 @@ final class GameScene: SKScene {
         draggedPiece = nil
         currentHoverPosition = nil
         dragOriginOffset = .zero
+        previewWillBlast = false
 
         for ghost in ghostNodes {
             ghost.removeFromParent()
