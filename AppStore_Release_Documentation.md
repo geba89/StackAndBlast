@@ -148,8 +148,9 @@ New puzzle game with a twist: blasts push blocks outward, triggering chain react
 ### Version 1.1 — Learn, Aim, Blast (draft)
 
 ```
-Bigger blasts, clearer aim, and a brand-new tutorial!
+A juicy new look, clearer aim, and a brand-new tutorial!
 
+- NEW: "Candy Pop" look — glossy candy blocks, a colorful new background, chunky buttons and a fresh logo
 - NEW: Interactive tutorial — learn blasts, pushes, chain reactions and power-ups by playing (HOW TO PLAY on the menu)
 - NEW: Blast preview — while you drag, see which blocks connect and how close you are to the goal
 - NEW: Floating points for every blast, plus "NEW BEST!" and GOAL-up announcements

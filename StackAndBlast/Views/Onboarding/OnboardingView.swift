@@ -52,7 +52,7 @@ struct OnboardingView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<pageCount, id: \.self) { index in
                         Circle()
-                            .fill(index == currentPage ? Color.blockCoral : Color.gray.opacity(0.4))
+                            .fill(index == currentPage ? Color.candyGold : Color.white.opacity(0.3))
                             .frame(width: 8, height: 8)
                             .animation(.easeInOut(duration: 0.2), value: currentPage)
                     }
@@ -68,13 +68,11 @@ struct OnboardingView: View {
                     }
                 }) {
                     Text(currentPage < pageCount - 1 ? "NEXT" : "LET'S PLAY")
-                        .font(.system(.headline, design: .rounded))
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
+                        .font(.system(size: 21, weight: .black, design: .rounded))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.blockCoral, in: RoundedRectangle(cornerRadius: 12))
+                        .frame(height: 58)
                 }
+                .buttonStyle(ChunkyButtonStyle(colors: .green, cornerRadius: 20))
                 .frame(maxWidth: 500)
                 .padding(.horizontal, 32)
                 .padding(.bottom, 48)
@@ -84,8 +82,8 @@ struct OnboardingView: View {
                     Button("Skip") {
                         onComplete()
                     }
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(.gray)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.6))
                     .padding(.bottom, 16)
                 }
             }
@@ -150,9 +148,13 @@ struct MiniGridView: View {
                 HStack(spacing: 2) {
                     ForEach(0..<gridSize, id: \.self) { col in
                         let color = (row < grid.count && col < grid[row].count) ? grid[row][col] : nil
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(color ?? Color(red: 0.176, green: 0.204, blue: 0.216).opacity(0.5))
-                            .frame(width: cellSize, height: cellSize)
+                        if let color {
+                            CandyBlockView(base: UIColor(color), size: cellSize)
+                        } else {
+                            RoundedRectangle(cornerRadius: cellSize * 0.22, style: .continuous)
+                                .fill(Color.white.opacity(0.07))
+                                .frame(width: cellSize, height: cellSize)
+                        }
                     }
                 }
             }
@@ -183,9 +185,7 @@ struct PlacePieceAnimation: View {
             // Animated piece blocks
             ForEach(0..<piecePositions.count, id: \.self) { i in
                 let pos = piecePositions[i]
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(pieceColor)
-                    .frame(width: cellSize, height: cellSize)
+                CandyBlockView(base: UIColor(pieceColor), size: cellSize)
                     .scaleEffect(phase >= 2 ? 1.0 : 0.9)
                     .offset(
                         x: CGFloat(pos.col - 2) * (cellSize + spacing),
@@ -406,9 +406,11 @@ struct ChainPushAnimation: View {
                 let row = Int(parts[0])!
                 let col = Int(parts[1])!
 
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(phase == 1 ? AnyShapeStyle(Color.white.opacity(0.8)) : AnyShapeStyle(Color.blockCoral))
-                    .frame(width: cellSize, height: cellSize)
+                CandyBlockView(base: UIColor(Color.blockCoral), size: cellSize)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cellSize * 0.22, style: .continuous)
+                            .fill(Color.white.opacity(phase == 1 ? 0.8 : 0))
+                    )
                     .position(cellPosition(row: row, col: col, totalSize: totalSize))
                     .opacity(phase >= 2 ? 0 : 1)
                     .scaleEffect(phase == 2 ? 1.3 : 1.0)
