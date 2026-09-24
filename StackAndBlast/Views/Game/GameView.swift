@@ -25,133 +25,146 @@ struct GameView: View {
             SpriteView(scene: scene)
                 .ignoresSafeArea()
 
-            // HUD overlay
-            VStack {
-                // Top bar: Score + Combo + Timer + Pause
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("SCORE")
-                            .font(.system(.caption2, design: .rounded))
-                            .fontWeight(.medium)
-                            .foregroundStyle(.gray)
-                        Text("\(viewModel.engine.score)")
-                            .font(.system(.title2, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white)
-                            .contentTransition(.numericText())
-                            .animation(.spring(duration: 0.3), value: viewModel.engine.score)
-                    }
-
-                    // Current blast threshold indicator
-                    VStack(spacing: 2) {
-                        Text("GOAL")
-                            .font(.system(.caption2, design: .rounded))
-                            .fontWeight(.medium)
-                            .foregroundStyle(.gray)
-                        Text("\(viewModel.engine.currentMinGroupSize)")
-                            .font(.system(.title3, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color(red: 1.0, green: 0.6, blue: 0.2))
-                            .contentTransition(.numericText())
-                            .animation(.spring(duration: 0.3), value: viewModel.engine.currentMinGroupSize)
-                    }
-
-                    // Coin balance
-                    HStack(spacing: 3) {
-                        Image(systemName: "bitcoinsign.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.yellow)
-                        Text("\(CoinManager.shared.balance)")
-                            .font(.system(.caption, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundStyle(.yellow)
-                    }
-
+            if let card = viewModel.tutorialCard {
+                // Tutorial: an instruction card replaces the HUD
+                VStack {
+                    TutorialCardView(
+                        card: card,
+                        onButton: { viewModel.tutorialButtonTapped() },
+                        onSkip: { viewModel.finishTutorial() }
+                    )
                     Spacer()
-
-                    // Combo counter — visible during blast cascades
-                    if viewModel.currentCombo > 1 {
-                        ComboLabel(level: viewModel.currentCombo)
-                            .transition(.scale.combined(with: .opacity))
-                            .animation(.spring(duration: 0.3, bounce: 0.4), value: viewModel.currentCombo)
-                    }
-
-                    // Countdown timer (Blast Rush and Daily Challenge)
-                    if viewModel.gameMode == .blastRush || viewModel.gameMode == .dailyChallenge {
-                        Spacer()
-                        BlastRushTimerLabel(timeRemaining: viewModel.timeRemaining)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        viewModel.togglePause()
-                    } label: {
-                        Image(systemName: "pause.fill")
-                            .font(.title3)
-                            .foregroundStyle(.white)
-                            .padding(8)
-                    }
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-                // Coin power-up buttons (visible during active play, hidden when paused/game over)
-                if viewModel.engine.state == .playing && !viewModel.isPaused {
-                    HStack(spacing: 10) {
-                        Spacer()
-
-                        // Coin Bomb
-                        CoinPowerUpButton(
-                            icon: "flame.fill",
-                            remaining: GameConstants.maxCoinBombsPerGame - viewModel.coinBombsUsed,
-                            maxUses: GameConstants.maxCoinBombsPerGame,
-                            price: GameConstants.coinBombPrice,
-                            isEnabled: viewModel.canUseCoinBomb,
-                            isActive: viewModel.isCoinBombMode
-                        ) {
-                            // Tapping again while targeting backs out (coins are only spent on detonation)
-                            if viewModel.isCoinBombMode {
-                                viewModel.cancelCoinBomb()
-                            } else {
-                                viewModel.activateCoinBomb()
-                            }
+                .transition(.opacity)
+            } else {
+                // HUD overlay
+                VStack {
+                    // Top bar: Score + Combo + Timer + Pause
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("SCORE")
+                                .font(.system(.caption2, design: .rounded))
+                                .fontWeight(.medium)
+                                .foregroundStyle(.gray)
+                            Text("\(viewModel.engine.score)")
+                                .font(.system(.title2, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundStyle(.white)
+                                .contentTransition(.numericText())
+                                .animation(.spring(duration: 0.3), value: viewModel.engine.score)
                         }
 
-                        // Shuffle (hidden in Daily Challenge)
-                        if viewModel.gameMode != .dailyChallenge {
-                            CoinPowerUpButton(
-                                icon: "shuffle",
-                                remaining: GameConstants.maxShufflesPerGame - viewModel.shufflesUsed,
-                                maxUses: GameConstants.maxShufflesPerGame,
-                                price: GameConstants.coinShufflePrice,
-                                isEnabled: viewModel.canUseShuffle,
-                                isActive: false
-                            ) {
-                                viewModel.useShuffle()
-                            }
+                        // Current blast threshold indicator
+                        VStack(spacing: 2) {
+                            Text("GOAL")
+                                .font(.system(.caption2, design: .rounded))
+                                .fontWeight(.medium)
+                                .foregroundStyle(.gray)
+                            Text("\(viewModel.engine.currentMinGroupSize)")
+                                .font(.system(.title3, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color(red: 1.0, green: 0.6, blue: 0.2))
+                                .contentTransition(.numericText())
+                                .animation(.spring(duration: 0.3), value: viewModel.engine.currentMinGroupSize)
+                        }
+
+                        // Coin balance
+                        HStack(spacing: 3) {
+                            Image(systemName: "bitcoinsign.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                            Text("\(CoinManager.shared.balance)")
+                                .font(.system(.caption, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundStyle(.yellow)
+                        }
+
+                        Spacer()
+
+                        // Combo counter — visible during blast cascades
+                        if viewModel.currentCombo > 1 {
+                            ComboLabel(level: viewModel.currentCombo)
+                                .transition(.scale.combined(with: .opacity))
+                                .animation(.spring(duration: 0.3, bounce: 0.4), value: viewModel.currentCombo)
+                        }
+
+                        // Countdown timer (Blast Rush and Daily Challenge)
+                        if viewModel.gameMode == .blastRush || viewModel.gameMode == .dailyChallenge {
+                            Spacer()
+                            BlastRushTimerLabel(timeRemaining: viewModel.timeRemaining)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            viewModel.togglePause()
+                        } label: {
+                            Image(systemName: "pause.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white)
+                                .padding(8)
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.top, 4)
-                    .transition(.opacity)
-                }
-
-                // Targeting hint — after the bomb ad nothing else tells the player what to do
-                if viewModel.isBombMode || viewModel.isCoinBombMode {
-                    HintBanner(
-                        icon: "flame.fill",
-                        text: viewModel.isCoinBombMode
-                            ? "Tap the grid to drop your bomb · tap 🔥 again to cancel"
-                            : "Tap the grid to drop your bomb"
-                    )
                     .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
 
-                Spacer()
+                    // Coin power-up buttons (visible during active play, hidden when paused/game over)
+                    if viewModel.engine.state == .playing && !viewModel.isPaused {
+                        HStack(spacing: 10) {
+                            Spacer()
+
+                            // Coin Bomb
+                            CoinPowerUpButton(
+                                icon: "flame.fill",
+                                remaining: GameConstants.maxCoinBombsPerGame - viewModel.coinBombsUsed,
+                                maxUses: GameConstants.maxCoinBombsPerGame,
+                                price: GameConstants.coinBombPrice,
+                                isEnabled: viewModel.canUseCoinBomb,
+                                isActive: viewModel.isCoinBombMode
+                            ) {
+                                // Tapping again while targeting backs out (coins are only spent on detonation)
+                                if viewModel.isCoinBombMode {
+                                    viewModel.cancelCoinBomb()
+                                } else {
+                                    viewModel.activateCoinBomb()
+                                }
+                            }
+
+                            // Shuffle (hidden in Daily Challenge)
+                            if viewModel.gameMode != .dailyChallenge {
+                                CoinPowerUpButton(
+                                    icon: "shuffle",
+                                    remaining: GameConstants.maxShufflesPerGame - viewModel.shufflesUsed,
+                                    maxUses: GameConstants.maxShufflesPerGame,
+                                    price: GameConstants.coinShufflePrice,
+                                    isEnabled: viewModel.canUseShuffle,
+                                    isActive: false
+                                ) {
+                                    viewModel.useShuffle()
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                    }
+
+                    // Targeting hint — after the bomb ad nothing else tells the player what to do
+                    if viewModel.isBombMode || viewModel.isCoinBombMode {
+                        HintBanner(
+                            icon: "flame.fill",
+                            text: viewModel.isCoinBombMode
+                                ? "Tap the grid to drop your bomb · tap 🔥 again to cancel"
+                                : "Tap the grid to drop your bomb"
+                        )
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    Spacer()
+                }
+                .animation(.easeInOut(duration: 0.2), value: viewModel.isBombMode || viewModel.isCoinBombMode)
             }
-            .animation(.easeInOut(duration: 0.2), value: viewModel.isBombMode || viewModel.isCoinBombMode)
 
             // Pause overlay
             if viewModel.isPaused {
@@ -184,9 +197,8 @@ struct GameView: View {
         .onAppear {
             scene.viewModel = viewModel
             viewModel.scene = scene
-            // Push current engine state — startGame may have run before scene was wired
-            scene.updateGrid(viewModel.engine.grid)
-            scene.updateTray(viewModel.engine.tray)
+            // Push current state — startGame may have run before the scene was wired
+            viewModel.syncScene()
         }
     }
 
@@ -281,6 +293,70 @@ private struct PauseOverlay: View {
             .frame(maxWidth: 400)
             .padding(32)
         }
+    }
+}
+
+/// The tutorial's instruction card: step, title, what to do (or what just
+/// happened), and the NEXT / LET'S PLAY! button once the move has played out.
+private struct TutorialCardView: View {
+    let card: GameViewModel.TutorialCard
+    let onButton: () -> Void
+    let onSkip: () -> Void
+
+    private let coral = Color(red: 0.882, green: 0.439, blue: 0.333)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(card.step)
+                    .font(.system(.caption, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundStyle(coral)
+                Text(card.title)
+                    .font(.system(.headline, design: .rounded))
+                    .fontWeight(.black)
+                    .foregroundStyle(.white)
+                Spacer()
+                if card.canSkip {
+                    Button("Skip", action: onSkip)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(.gray)
+                }
+            }
+
+            Text(card.message)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+                .fixedSize(horizontal: false, vertical: true)
+                // Animate the switch from instruction → result
+                .id(card.message)
+                .transition(.opacity)
+
+            if let buttonTitle = card.buttonTitle {
+                HStack {
+                    Spacer()
+                    Button(action: onButton) {
+                        Text(buttonTitle)
+                            .font(.system(.subheadline, design: .rounded))
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
+                            .background(coral, in: Capsule())
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(red: 0.118, green: 0.153, blue: 0.180).opacity(0.95))
+        )
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(coral.opacity(0.6), lineWidth: 1))
+        .frame(maxWidth: 500)
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .animation(.easeInOut(duration: 0.25), value: card.message)
     }
 }
 

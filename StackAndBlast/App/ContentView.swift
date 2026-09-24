@@ -126,6 +126,14 @@ struct ContentView: View {
             // Authenticate with Game Center for leaderboards
             LeaderboardManager.shared.configure()
         }
+        // Tutorial finished or skipped: straight into a real game
+        // (changing the mode starts Classic via onChange(of: selectedMode) above)
+        .onChange(of: viewModel.tutorialFinished) { _, finished in
+            if finished {
+                viewModel.tutorialFinished = false
+                selectedMode = .classic
+            }
+        }
         .onChange(of: viewModel.wantsQuitToMenu) { _, wantsQuit in
             if wantsQuit {
                 sessionGameCount += 1

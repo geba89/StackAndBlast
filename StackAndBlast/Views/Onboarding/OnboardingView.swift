@@ -9,6 +9,11 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     private let pageCount = 4
 
+    /// Starting blast goal for the player's grid size (10 on the default 9×9).
+    private var startingGoal: Int {
+        GameConstants.initialMinGroupSize(forGridSize: SettingsManager.shared.gridSize)
+    }
+
     var body: some View {
         ZStack {
             // #1E272E — matches Color.background from theme
@@ -18,13 +23,13 @@ struct OnboardingView: View {
                 TabView(selection: $currentPage) {
                     OnboardingPage(
                         title: "PLACE PIECES",
-                        subtitle: "Drag pieces from the tray onto the 9×9 grid",
+                        subtitle: "Drag pieces from the tray onto the grid",
                         animation: { PlacePieceAnimation() }
                     ).tag(0)
 
                     OnboardingPage(
                         title: "MATCH COLORS",
-                        subtitle: "Connect 10+ same-color blocks to blast them",
+                        subtitle: "Connect \(startingGoal)+ same-color blocks to blast them — watch the GOAL number",
                         animation: { ColorBlastAnimation() }
                     ).tag(1)
 
@@ -36,7 +41,7 @@ struct OnboardingView: View {
 
                     OnboardingPage(
                         title: "USE THE BOMB",
-                        subtitle: "Game over? Watch an ad to clear a 6×6 area and keep playing",
+                        subtitle: "Game over in Classic? Watch an ad to clear a 6×6 area and keep playing",
                         animation: { BombAnimation() }
                     ).tag(3)
                 }

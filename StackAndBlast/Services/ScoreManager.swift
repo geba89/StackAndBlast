@@ -39,6 +39,8 @@ final class ScoreManager {
             if score > blastRushHighScore { blastRushHighScore = score }
         case .dailyChallenge:
             if score > dailyChallengeHighScore { dailyChallengeHighScore = score }
+        case .tutorial:
+            break // practice lessons don't count
         }
     }
 
@@ -48,6 +50,7 @@ final class ScoreManager {
         case .classic: return classicHighScore
         case .blastRush: return blastRushHighScore
         case .dailyChallenge: return dailyChallengeHighScore
+        case .tutorial: return 0
         }
     }
 }

@@ -63,6 +63,7 @@ struct ScoreCardView: View {
         case .classic: return "Classic Mode"
         case .dailyChallenge: return "Daily Challenge"
         case .blastRush: return "Blast Rush"
+        case .tutorial: return "Tutorial"
         }
     }
 }
@@ -149,6 +150,7 @@ extension GameMode {
         case .classic: return "classic"
         case .dailyChallenge: return "daily_challenge"
         case .blastRush: return "blast_rush"
+        case .tutorial: return "tutorial"
         }
     }
 }

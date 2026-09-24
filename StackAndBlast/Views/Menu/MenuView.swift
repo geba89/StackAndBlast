@@ -11,6 +11,7 @@ struct MenuView: View {
     @State private var showStore = false
     @AppStorage("lastDailyChallengeDate") private var lastDailyChallengeDate = ""
     @AppStorage("lastDailyBonusDate") private var lastDailyBonusDate = ""
+    @AppStorage("hasCompletedTutorial") private var hasCompletedTutorial = false
 
     /// Hold reference so SwiftUI's Observation framework can track property changes.
     private let networkMonitor = NetworkMonitor.shared
@@ -141,7 +142,9 @@ struct MenuView: View {
                     // Menu buttons
                     VStack(spacing: 16) {
                         MenuButton(title: "PLAY", color: Color(red: 0.882, green: 0.439, blue: 0.333)) {
-                            selectedMode = .classic
+                            // Brand-new players learn by doing first; everyone else goes straight in
+                            let isNewPlayer = !hasCompletedTutorial && StatsManager.shared.totalGamesPlayed == 0
+                            selectedMode = isNewPlayer ? .tutorial : .classic
                         }
 
                         // Daily Challenge — show completion state
@@ -172,6 +175,23 @@ struct MenuView: View {
 
                         MenuButton(title: "BLAST RUSH", color: Color(red: 0.424, green: 0.361, blue: 0.906)) {
                             selectedMode = .blastRush
+                        }
+
+                        // Replay the interactive tutorial any time
+                        Button {
+                            selectedMode = .tutorial
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "questionmark.circle.fill")
+                                    .font(.subheadline)
+                                Text("HOW TO PLAY")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .fontWeight(.bold)
+                            }
+                            .foregroundStyle(.white.opacity(0.85))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                         }
 
                         // Daily bonus ad button — only shown when an ad is actually loaded
@@ -245,6 +265,8 @@ enum GameMode {
     case classic
     case dailyChallenge
     case blastRush
+    /// Interactive "learn to play" lessons — no score, stats, or leaderboards.
+    case tutorial
 }
 
 // MARK: - Menu Button

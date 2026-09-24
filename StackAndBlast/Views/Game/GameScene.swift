@@ -23,6 +23,10 @@ final class GameScene: SKScene {
     /// Grid size the scene was last laid out for — triggers re-layout on change.
     private var layoutGridSize: Int = 0
 
+    /// Space kept free above the grid for the SwiftUI HUD. The tutorial's
+    /// instruction card is taller than the normal HUD, so it reserves more.
+    private var hudReservedHeight: CGFloat = 60
+
     // MARK: - Node Layers
 
     /// Background grid checkerboard.
@@ -1156,6 +1160,78 @@ final class GameScene: SKScene {
         }
     }
 
+    // MARK: - Tutorial Hints
+
+    /// Target highlight + hand hint nodes for the current tutorial lesson.
+    private var tutorialNodes: [SKNode] = []
+
+    /// The animated hand, hidden while the player drags so it doesn't get in the way.
+    private weak var tutorialHand: SKNode?
+
+    /// Make the cells where the tutorial wants the piece dropped glow, and loop a hand
+    /// "dragging" from the tray to them.
+    func showTutorialTarget(cells: [GridPosition]) {
+        clearTutorialTarget()
+        guard !cells.isEmpty else { return }
+
+        for cell in cells where cell.isValid {
+            let glow = SKShapeNode(rectOf: CGSize(width: cellSize - 2, height: cellSize - 2),
+                                   cornerRadius: blockCornerRadius)
+            glow.fillColor = previewGold.withAlphaComponent(0.18)
+            glow.strokeColor = previewGold
+            glow.lineWidth = 2.5
+            glow.position = scenePosition(for: cell)
+            glow.zPosition = 1.5 // above blocks, below the drag ghost
+            glow.run(.repeatForever(.sequence([
+                .fadeAlpha(to: 0.35, duration: 0.6),
+                .fadeAlpha(to: 1.0, duration: 0.6)
+            ])))
+            addChild(glow)
+            tutorialNodes.append(glow)
+        }
+
+        // Hand hint from the (single) tray piece to the middle of the target cells
+        guard let trayPiece = trayPieceNodes.values.first else { return }
+        let rows = cells.map { CGFloat($0.row) }
+        let cols = cells.map { CGFloat($0.col) }
+        let targetCenter = CGPoint(
+            x: gridOrigin.x + (cols.reduce(0, +) / CGFloat(cols.count)) * cellSize + cellSize / 2,
+            y: gridOrigin.y - (rows.reduce(0, +) / CGFloat(rows.count)) * cellSize - cellSize / 2
+        )
+        // The fingertip sits a bit above the emoji's center
+        let fingerOffset = CGPoint(x: cellSize * 0.15, y: -cellSize * 0.45)
+        let start = CGPoint(x: trayPiece.position.x + fingerOffset.x, y: trayPiece.position.y + fingerOffset.y)
+        let end = CGPoint(x: targetCenter.x + fingerOffset.x, y: targetCenter.y + fingerOffset.y)
+
+        let hand = SKLabelNode(text: "👆")
+        hand.fontSize = cellSize * 0.9
+        hand.verticalAlignmentMode = .center
+        hand.zPosition = 12
+        hand.alpha = 0
+        hand.position = start
+
+        let slide = SKAction.move(to: end, duration: 1.0)
+        slide.timingMode = .easeInEaseOut
+        hand.run(.repeatForever(.sequence([
+            .move(to: start, duration: 0),
+            .fadeIn(withDuration: 0.25),
+            .wait(forDuration: 0.2),
+            slide,
+            .wait(forDuration: 0.3),
+            .fadeOut(withDuration: 0.25),
+            .wait(forDuration: 0.6)
+        ])))
+        addChild(hand)
+        tutorialNodes.append(hand)
+        tutorialHand = hand
+    }
+
+    /// Remove the tutorial target highlight and hand hint.
+    func clearTutorialTarget() {
+        tutorialNodes.forEach { $0.removeFromParent() }
+        tutorialNodes.removeAll()
+    }
+
     // MARK: - Score Popups & Banners
 
     /// Floating "+240" rising from a blast's center. Chain reactions also show their
@@ -1531,6 +1607,9 @@ final class GameScene: SKScene {
             // Fade out the tray version
             hit.node.alpha = 0.3
 
+            // The tutorial's hand hint would only get in the way now
+            tutorialHand?.isHidden = true
+
             lastTrailPosition = location
             viewModel?.beginDrag(piece: piece)
             AudioManager.shared.playPickup(cellCount: piece.cellCount)
@@ -1695,8 +1774,9 @@ final class GameScene: SKScene {
         }
 
         // Power-up pieces: only need the single origin cell to be valid
+        // (and, in the tutorial, to be the highlighted cell)
         if piece.isPowerUp {
-            guard origin.isValid else { return }
+            guard viewModel?.canDrop(piece, at: origin) == true else { return }
             let goldColor = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 0.3)
             let goldBorder = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 0.6)
             let inset: CGFloat = 1.0
@@ -1956,6 +2036,7 @@ final class GameScene: SKScene {
         currentHoverPosition = nil
         dragOriginOffset = .zero
         previewWillBlast = false
+        tutorialHand?.isHidden = false // back if the drop missed (removed once the move is made)
 
         for ghost in ghostNodes {
             ghost.removeFromParent()
@@ -2027,14 +2108,23 @@ final class GameScene: SKScene {
     ///
     /// Vertical layout (bottom to top):
     ///   bottom padding(30) + tray center offset(1.25*cell) + tray top half(1.25*cell)
-    ///   + gap(24) + grid(gridSize*cell) + HUD(60)
-    /// Solving: 30 + 1.25c + 1.25c + 24 + gridSize*c + 60 = height
-    ///          c * (gridSize + 2.5) = height - 114
+    ///   + gap(24) + grid(gridSize*cell) + HUD(hudReservedHeight, normally 60)
+    /// Solving: 30 + 1.25c + 1.25c + 24 + gridSize*c + HUD = height
+    ///          c * (gridSize + 2.5) = height - 54 - HUD
     private func calculateCellSize() -> CGFloat {
         let gridSize = CGFloat(GameConstants.gridSize)
         let widthBased = (size.width - gridPadding * 2) / gridSize
-        let heightBased = (size.height - 114) / (gridSize + 2.5)
+        let heightBased = (size.height - 54 - hudReservedHeight) / (gridSize + 2.5)
         return min(widthBased, heightBased)
+    }
+
+    /// Switch between the normal layout and the tutorial's (more room on top for
+    /// the instruction card). Re-lays out the scene only when something changes.
+    func setTutorialLayout(_ enabled: Bool) {
+        let height: CGFloat = enabled ? 170 : 60
+        guard height != hudReservedHeight else { return }
+        hudReservedHeight = height
+        if view != nil { layoutScene() } // not presented yet → didMove(to:) lays out
     }
 
     /// Calculate the top-left origin of the grid in scene coordinates.
@@ -2044,7 +2134,7 @@ final class GameScene: SKScene {
         let gridHeight = cellSize * CGFloat(GameConstants.gridSize)
         let x = (size.width - gridWidth) / 2
         // Available vertical zone: below HUD, above tray
-        let availableTop = size.height - 60
+        let availableTop = size.height - hudReservedHeight
         let availableBottom = trayCenterY + cellSize * 1.25 + 16
         // Center the grid in this zone
         let centerY = (availableTop + availableBottom) / 2

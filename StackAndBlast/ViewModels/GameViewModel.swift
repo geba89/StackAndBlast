@@ -54,6 +54,106 @@ final class GameViewModel {
     /// Whether this game beats the player's previous best for the mode.
     var isNewBest: Bool { engine.score > 0 && engine.score > bestScoreBeforeGame }
 
+    // MARK: - Tutorial
+
+    /// The lessons of the running tutorial.
+    private var tutorialLessons: [TutorialLesson] = []
+
+    /// Current lesson index; `tutorialLessons.count` means the final "you're ready" card.
+    private var tutorialLessonIndex = 0
+
+    /// Whether the current lesson's move has been made (its result is showing).
+    private var tutorialMoveDone = false
+
+    /// Set when the player finishes or skips the tutorial — ContentView then starts a real game.
+    var tutorialFinished = false
+
+    /// The lesson being played, if any.
+    private var currentTutorialLesson: TutorialLesson? {
+        guard gameMode == .tutorial, tutorialLessons.indices.contains(tutorialLessonIndex) else { return nil }
+        return tutorialLessons[tutorialLessonIndex]
+    }
+
+    /// What the tutorial's instruction card at the top of the screen shows.
+    struct TutorialCard {
+        let step: String
+        let title: String
+        let message: String
+        /// NEXT / LET'S PLAY!, or `nil` while waiting for the player's move.
+        let buttonTitle: String?
+        let canSkip: Bool
+    }
+
+    /// The card for the current tutorial step (`nil` outside the tutorial).
+    var tutorialCard: TutorialCard? {
+        guard gameMode == .tutorial else { return nil }
+
+        if let lesson = currentTutorialLesson {
+            return TutorialCard(
+                step: "\(tutorialLessonIndex + 1)/\(tutorialLessons.count)",
+                title: lesson.title,
+                message: tutorialMoveDone ? lesson.result : lesson.instruction,
+                buttonTitle: tutorialMoveDone ? "NEXT" : nil,
+                canSkip: true
+            )
+        }
+
+        // Wrap-up: the real game's rules, for the player's chosen grid size
+        let goal = GameConstants.initialMinGroupSize(forGridSize: SettingsManager.shared.gridSize)
+        return TutorialCard(
+            step: "🎉",
+            title: "YOU'RE READY!",
+            message: "In real games the GOAL at the top shows how many connected blocks a blast needs: "
+                + "\(goal) to start, rising as you score. The game ends when no piece fits. Good luck!",
+            buttonTitle: "LET'S PLAY!",
+            canSkip: false
+        )
+    }
+
+    /// The tutorial card's button: next lesson, or leave the tutorial after the last one.
+    func tutorialButtonTapped() {
+        guard gameMode == .tutorial else { return }
+        if tutorialLessonIndex < tutorialLessons.count {
+            loadTutorialLesson(tutorialLessonIndex + 1)
+        } else {
+            finishTutorial()
+        }
+    }
+
+    /// SKIP, or LET'S PLAY! on the last card.
+    func finishTutorial() {
+        UserDefaults.standard.set(true, forKey: "hasCompletedTutorial")
+        scene?.clearTutorialTarget()
+        tutorialFinished = true
+    }
+
+    /// Set up lesson `index` (or the wrap-up card when past the last lesson).
+    private func loadTutorialLesson(_ index: Int) {
+        tutorialLessonIndex = index
+        tutorialMoveDone = false
+        scene?.clearTutorialTarget()
+
+        // The wrap-up card keeps whatever is left on the board
+        guard let lesson = currentTutorialLesson else { return }
+
+        engine.startScenario(grid: BoardSketch.grid(lesson.board), tray: [lesson.piece],
+                             minGroupSize: TutorialLesson.goal)
+        scene?.updateGrid(engine.grid)
+        scene?.updateTray(engine.tray)
+        scene?.showTutorialTarget(cells: lesson.piece.absolutePositions(at: lesson.target))
+    }
+
+    /// Push everything the scene shows (layout, board, tray, tutorial hints) to a
+    /// freshly created scene — `startGame` may have run before the scene existed.
+    func syncScene() {
+        scene?.setTutorialLayout(gameMode == .tutorial)
+        scene?.updateGrid(engine.grid)
+        scene?.updateTray(engine.tray)
+        if let lesson = currentTutorialLesson, !tutorialMoveDone {
+            scene?.showTutorialTarget(cells: lesson.piece.absolutePositions(at: lesson.target))
+        }
+    }
+
     // MARK: - Countdown (Blast Rush + Daily Challenge)
 
     /// Time remaining on the clock (seconds).
@@ -147,10 +247,12 @@ final class GameViewModel {
             dailyChallengeDayKey = DailyChallengeDate.key()
             engine.startDailyChallenge()
             startCountdown(from: GameConstants.dailyChallengeDuration)
+        case .tutorial:
+            tutorialLessons = TutorialLesson.all
+            loadTutorialLesson(0)
         }
 
-        scene?.updateGrid(engine.grid)
-        scene?.updateTray(engine.tray)
+        syncScene()
 
         AnalyticsManager.shared.logGameStart(mode: mode.analyticsName)
     }
@@ -176,7 +278,8 @@ final class GameViewModel {
     /// Pause automatically when the app leaves the foreground (incoming call, app
     /// switcher, Control Center) so the clock doesn't keep running behind the player's back.
     func pauseIfPlaying() {
-        guard engine.state == .playing else { return }
+        // The tutorial has no clock (and no pause menu)
+        guard engine.state == .playing, gameMode != .tutorial else { return }
         engine.pause()
         isPaused = true
     }
@@ -202,7 +305,11 @@ final class GameViewModel {
     /// Whether a piece may be dropped at this origin (the scene's ghost preview and
     /// drop handling both ask here, so the rules live in one place).
     func canDrop(_ piece: Piece, at origin: GridPosition) -> Bool {
-        engine.canPlace(piece, at: origin)
+        // In a tutorial lesson the piece has to go on the highlighted cells
+        if let lesson = currentTutorialLesson {
+            return !tutorialMoveDone && origin == lesson.target && engine.canPlace(piece, at: origin)
+        }
+        return engine.canPlace(piece, at: origin)
     }
 
     func updateHover(position: GridPosition) {
@@ -229,6 +336,10 @@ final class GameViewModel {
         // Audio + haptic feedback for successful placement
         AudioManager.shared.playPlacement()
         HapticManager.shared.playPlacement()
+
+        if gameMode == .tutorial {
+            scene?.clearTutorialTarget() // the lesson's move is made
+        }
 
         if !result.blastEvents.isEmpty, let preBlastGrid = result.preBlastGrid {
             // Add time bonus in Blast Rush mode
@@ -257,21 +368,24 @@ final class GameViewModel {
                 self.scene?.isAnimating = false
                 self.currentCombo = 0
                 self.scene?.updateTray(self.engine.tray)
-                if result.gameOver {
-                    self.handleGameOver()
-                } else {
-                    self.announceMilestones(goalBeforeMove: goalBeforeMove)
-                }
+                self.moveDidFinish(result, goalBeforeMove: goalBeforeMove)
             }
         } else {
             // No blast — just update the grid and tray immediately
             scene?.updateGrid(engine.grid)
             scene?.updateTray(engine.tray)
-            if result.gameOver {
-                handleGameOver()
-            } else {
-                announceMilestones(goalBeforeMove: goalBeforeMove)
-            }
+            moveDidFinish(result, goalBeforeMove: goalBeforeMove)
+        }
+    }
+
+    /// Everything that happens once a move (and its animations) is over.
+    private func moveDidFinish(_ result: PlacementResult, goalBeforeMove: Int) {
+        if result.gameOver {
+            handleGameOver()
+        } else if gameMode == .tutorial {
+            tutorialMoveDone = true // show the lesson's result + NEXT
+        } else {
+            announceMilestones(goalBeforeMove: goalBeforeMove)
         }
     }
 
@@ -532,11 +646,16 @@ final class GameViewModel {
         dailyChallengeTier = nil
         coinBombsUsed = 0
         shufflesUsed = 0
+        tutorialFinished = false
+        tutorialMoveDone = false
+        tutorialLessonIndex = 0
+        scene?.clearTutorialTarget()
     }
 
     /// Record lifetime stats for a game the player walked away from (quit or restart).
     private func recordAbandonedGame() {
-        guard !hasRecordedStats else { return }
+        // Tutorial lessons aren't real games
+        guard !hasRecordedStats, gameMode != .tutorial else { return }
         hasRecordedStats = true
         StatsManager.shared.recordGameTotals(
             score: engine.score,

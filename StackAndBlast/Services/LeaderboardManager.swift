@@ -58,9 +58,8 @@ final class LeaderboardManager: NSObject {
 
     /// Submit a score to the leaderboard matching the given game mode.
     func submitScore(_ score: Int, mode: GameMode) {
-        guard isAuthenticated, score > 0 else { return }
+        guard isAuthenticated, score > 0, let leaderboardID = leaderboardID(for: mode) else { return }
 
-        let leaderboardID = leaderboardID(for: mode)
         GKLeaderboard.submitScore(score, context: 0, player: GKLocalPlayer.local,
                                    leaderboardIDs: [leaderboardID]) { error in
             if let error {
@@ -82,11 +81,13 @@ final class LeaderboardManager: NSObject {
 
     // MARK: - Helpers
 
-    private func leaderboardID(for mode: GameMode) -> String {
+    /// The leaderboard for a mode, or `nil` if the mode has none (tutorial).
+    private func leaderboardID(for mode: GameMode) -> String? {
         switch mode {
         case .classic:        return LeaderboardID.classic
         case .blastRush:      return LeaderboardID.blastRush
         case .dailyChallenge: return LeaderboardID.dailyChallenge
+        case .tutorial:       return nil
         }
     }
 
