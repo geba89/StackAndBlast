@@ -61,7 +61,7 @@ private struct AchievementCard: View {
                 } else {
                     Image(systemName: "lock.fill")
                         .font(.subheadline)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(Color.candyMuted)
                 }
             }
 
@@ -69,13 +69,13 @@ private struct AchievementCard: View {
             Text(achievement.name)
                 .font(.system(.subheadline, design: .rounded))
                 .fontWeight(.bold)
-                .foregroundStyle(isUnlocked ? .white : .gray)
+                .foregroundStyle(isUnlocked ? .white : Color.candyMuted)
                 .multilineTextAlignment(.center)
 
             // Description
             Text(achievement.description)
                 .font(.system(.caption2, design: .rounded))
-                .foregroundStyle(.gray)
+                .foregroundStyle(Color.candyMuted)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
 
@@ -87,7 +87,7 @@ private struct AchievementCard: View {
                 Text(isUnlocked ? "Earned" : "+\(achievement.coinReward)")
                     .font(.system(.caption2, design: .rounded))
                     .fontWeight(.semibold)
-                    .foregroundStyle(isUnlocked ? Color(red: 0.0, green: 0.722, blue: 0.580) : .gray)
+                    .foregroundStyle(isUnlocked ? Color(red: 0.0, green: 0.722, blue: 0.580) : Color.candyMuted)
             }
         }
         .frame(maxWidth: .infinity)

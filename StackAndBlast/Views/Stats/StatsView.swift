@@ -44,7 +44,7 @@ struct StatsView: View {
                             Text("HIGH SCORES")
                                 .font(.system(.caption, design: .rounded))
                                 .fontWeight(.bold)
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(Color.candyMuted)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.bottom, 12)
 
@@ -69,10 +69,10 @@ struct StatsView: View {
                                 Text("\(AchievementManager.shared.unlockedIDs.count)/\(AchievementManager.shared.achievements.count)")
                                     .font(.system(.subheadline, design: .rounded))
                                     .fontWeight(.semibold)
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(Color.candyMuted)
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(Color.candyMuted)
                             }
                             .foregroundStyle(.white)
                             .padding()
@@ -153,7 +153,7 @@ private struct StatCard: View {
 
             Text(title)
                 .font(.system(.caption, design: .rounded))
-                .foregroundStyle(.gray)
+                .foregroundStyle(Color.candyMuted)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)

@@ -103,7 +103,7 @@ private struct SkinCard: View {
                 Text(skin.name)
                     .font(.system(.headline, design: .rounded))
                     .fontWeight(.bold)
-                    .foregroundStyle(isUnlocked ? .white : .gray)
+                    .foregroundStyle(isUnlocked ? .white : Color.candyMuted)
 
                 if skin.animationType != nil {
                     Text("ANIMATED")
@@ -183,7 +183,7 @@ private struct SkinCard: View {
                         Text(skin.unlockCondition)
                             .font(.system(.caption2, design: .rounded))
                     }
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(Color.candyMuted)
                 }
             } else if isActive {
                 HStack(spacing: 4) {

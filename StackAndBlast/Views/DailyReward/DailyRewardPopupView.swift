@@ -125,7 +125,7 @@ private struct DayRewardCell: View {
         VStack(spacing: 4) {
             Text("D\(day)")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(isCurrent ? .white : .gray)
+                .foregroundStyle(isCurrent ? .white : Color.candyMuted)
 
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
@@ -149,7 +149,7 @@ private struct DayRewardCell: View {
 
             Text("\(coins)")
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(isCurrent ? .yellow : .gray)
+                .foregroundStyle(isCurrent ? .yellow : Color.candyMuted)
         }
     }
 

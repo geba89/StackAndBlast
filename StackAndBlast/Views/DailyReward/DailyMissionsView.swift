@@ -19,7 +19,7 @@ struct DailyMissionsView: View {
                     TimelineView(.periodic(from: .now, by: 60)) { context in
                         Text("New missions in \(Self.timeUntilMidnight(from: context.date))")
                             .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(Color.candyMuted)
                     }
                     .padding(.bottom, 4)
 
@@ -46,7 +46,7 @@ struct DailyMissionsView: View {
                                 .foregroundStyle(.white)
                             Text("\(manager.completedCount)/\(manager.missions.count) done")
                                 .font(.system(.caption2, design: .rounded))
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(Color.candyMuted)
                         }
                         Spacer()
                         CoinReward(amount: MissionManager.allCompleteBonus, isPaid: manager.bonusAwarded)
@@ -57,7 +57,7 @@ struct DailyMissionsView: View {
 
                     Text("Missions count in Classic, Blast Rush and the Daily Challenge. Coins are added as soon as a mission is done.")
                         .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(Color.candyMuted)
                         .multilineTextAlignment(.center)
                         .padding(.top, 8)
                 }
@@ -109,13 +109,13 @@ private struct MissionRow: View {
                 Text(mission.title)
                     .font(.system(.subheadline, design: .rounded))
                     .fontWeight(.semibold)
-                    .foregroundStyle(isCompleted ? .gray : .white)
-                    .strikethrough(isCompleted, color: .gray)
+                    .foregroundStyle(isCompleted ? Color.candyMuted : .white)
+                    .strikethrough(isCompleted, color: Color.candyMuted)
                 ProgressView(value: Double(progress), total: Double(mission.target))
                     .tint(isCompleted ? doneColor : accent)
                 Text("\(progress)/\(mission.target)")
                     .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(Color.candyMuted)
             }
 
             Spacer(minLength: 8)
@@ -140,6 +140,6 @@ private struct CoinReward: View {
                 .fontWeight(.bold)
         }
         .font(.system(.subheadline, design: .rounded))
-        .foregroundStyle(isPaid ? .gray : .yellow)
+        .foregroundStyle(isPaid ? Color.candyMuted : .yellow)
     }
 }

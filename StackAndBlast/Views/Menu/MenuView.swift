@@ -86,7 +86,7 @@ struct MenuView: View {
 
                     // Logo: gets its space first, and shrinks on small screens
                     CandyLogo()
-                        .frame(maxWidth: 400)
+                        .frame(maxWidth: 480) // phones: the screen width; iPad: a bit bigger
                         .layoutPriority(1)
 
                     // Best score + streak

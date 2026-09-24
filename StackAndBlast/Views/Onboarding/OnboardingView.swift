@@ -119,7 +119,7 @@ struct OnboardingPage<Content: View>: View {
             // Subtitle
             Text(subtitle)
                 .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(.gray)
+                .foregroundStyle(Color.candyMuted)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 48)
 

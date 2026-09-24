@@ -82,7 +82,7 @@ struct StoreView: View {
                         } label: {
                             Text("Restore Purchases")
                                 .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(Color.candyMuted)
                         }
                         .padding(.bottom, 32)
                     }
@@ -119,7 +119,7 @@ private struct CoinBalanceHeader: View {
                 .foregroundStyle(.white)
             Text("coins")
                 .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(.gray)
+                .foregroundStyle(Color.candyMuted)
         }
         .padding()
         .frame(maxWidth: .infinity)
@@ -139,7 +139,7 @@ private struct StoreSection<Content: View>: View {
             Text(title)
                 .font(.system(.caption, design: .rounded))
                 .fontWeight(.bold)
-                .foregroundStyle(.gray)
+                .foregroundStyle(Color.candyMuted)
                 .padding(.horizontal)
 
             VStack(spacing: 8) {
@@ -187,7 +187,7 @@ private struct ProductCard: View {
                     }
                     Text(description)
                         .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(Color.candyMuted)
                 }
 
                 Spacer()
@@ -293,7 +293,7 @@ private struct SkinBundleCard: View {
                         .fontWeight(.bold)
                     Text("Unlock the \(skinName) block skin")
                         .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(Color.candyMuted)
                 }
 
                 Spacer()

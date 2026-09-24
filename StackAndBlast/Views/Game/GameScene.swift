@@ -104,8 +104,11 @@ final class GameScene: SKScene {
     /// to the actual device screen). Recalculates all layout to fit the new dimensions.
     override func didChangeSize(_ oldSize: CGSize) {
         super.didChangeSize(oldSize)
-        // Only re-layout if we're already presented (didMove has run)
-        guard scene != nil else { return }
+        // Only re-layout once presented (didMove has run) and with a real size.
+        // SKScene's init sets the size too — to zero, before there's anything to lay
+        // out. (This used to check `scene != nil`, which is always true: a scene's
+        // `scene` is itself — so the board was laid out with negative cell sizes.)
+        guard view != nil, size.width > 0, size.height > 0 else { return }
         layoutScene()
     }
 
@@ -114,6 +117,8 @@ final class GameScene: SKScene {
         // Cache layout values
         layoutGridSize = GameConstants.gridSize
         cellSize = calculateCellSize()
+        // No room yet (no real size) — didMove / didChangeSize will lay out again
+        guard cellSize > 0 else { return }
         gridOrigin = calculateGridOrigin(cellSize: cellSize)
 
         setupGrid()
@@ -174,6 +179,8 @@ final class GameScene: SKScene {
         if GameConstants.gridSize != layoutGridSize {
             layoutScene()
         }
+        // Not laid out yet: layoutScene pushes the board once it is
+        guard cellSize > 0 else { return }
 
         // Collect all blocks currently in the new grid
         var newBlockIDs = Set<UUID>()
@@ -217,7 +224,8 @@ final class GameScene: SKScene {
         }
         trayPieceNodes.removeAll()
 
-        guard !pieces.isEmpty else { return }
+        // Nothing to show, or not laid out yet (layoutScene pushes the tray once it is)
+        guard !pieces.isEmpty, cellSize > 0 else { return }
 
         let trayY = trayCenterY
         let gridWidth = cellSize * CGFloat(GameConstants.gridSize)

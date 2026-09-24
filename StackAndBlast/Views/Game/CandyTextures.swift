@@ -96,7 +96,8 @@ enum CandyTextures {
 
     /// A glossy candy block: lighter at the top, darker at the bottom with a bevel
     /// edge, a soft gloss and a small shine dot. `size` is in points.
-    static func block(color: UIColor, size: CGSize, cornerRadius: CGFloat) -> SKTexture {
+    static func block(color: UIColor, size requested: CGSize, cornerRadius: CGFloat) -> SKTexture {
+        let size = drawable(requested)
         let key = "block|\(color.cacheKey)|\(size.width)x\(size.height)|\(cornerRadius)"
         if let cached = cache[key] { return cached }
 
@@ -140,7 +141,8 @@ enum CandyTextures {
 
     /// An empty board cell: a soft square that looks slightly pressed in (a shadow
     /// falls from its top edge). `fill` is the skin's grid color, if it has one.
-    static func cell(size: CGSize, cornerRadius: CGFloat, fill: UIColor?) -> SKTexture {
+    static func cell(size requested: CGSize, cornerRadius: CGFloat, fill: UIColor?) -> SKTexture {
+        let size = drawable(requested)
         let base = fill ?? UIColor.white.withAlphaComponent(0.06)
         let key = "cell|\(base.cacheKey)|\(size.width)x\(size.height)|\(cornerRadius)"
         if let cached = cache[key] { return cached }
@@ -161,6 +163,11 @@ enum CandyTextures {
     }
 
     // MARK: Drawing helpers
+
+    /// Image renderers (and sprites) throw on zero or negative sizes — never ask for one.
+    private static func drawable(_ size: CGSize) -> CGSize {
+        CGSize(width: max(1, size.width), height: max(1, size.height))
+    }
 
     private static func store(_ texture: SKTexture, _ key: String) -> SKTexture {
         cache[key] = texture

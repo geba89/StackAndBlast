@@ -26,7 +26,7 @@ struct ScoreCardView: View {
             VStack(spacing: 2) {
                 Text("SCORE")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(Color.candyMuted)
                 OutlinedTitle(text: score.grouped, size: 48)
             }
 
@@ -81,7 +81,7 @@ private struct MiniStat: View {
                 .foregroundStyle(.white)
             Text(label)
                 .font(.system(size: 9, weight: .medium, design: .rounded))
-                .foregroundStyle(.gray)
+                .foregroundStyle(Color.candyMuted)
         }
     }
 }

@@ -65,7 +65,7 @@ struct SettingsView: View {
 
                         Text("Takes effect on your next game · Daily Challenge is always 9×9")
                             .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(Color.candyMuted)
                     }
                     .padding()
                     .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
@@ -116,7 +116,7 @@ struct SettingsView: View {
                         } label: {
                             Text("Restore Purchases")
                                 .font(.system(.subheadline, design: .rounded))
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(Color.candyMuted)
                         }
                     }
                     .padding(.horizontal)
@@ -126,11 +126,11 @@ struct SettingsView: View {
                         Text("POWER-UPS")
                             .font(.system(.caption, design: .rounded))
                             .fontWeight(.bold)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(Color.candyMuted)
 
                         Text("Power-ups appear in your piece tray every few rounds. Place them on the grid to trigger their effect!")
                             .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(.gray.opacity(0.8))
+                            .foregroundStyle(Color.candyMuted)
 
                         ForEach(PowerUpType.allCases, id: \.rawValue) { powerUp in
                             HStack(spacing: 12) {
@@ -145,7 +145,7 @@ struct SettingsView: View {
                                         .foregroundStyle(.white)
                                     Text(powerUp.description)
                                         .font(.system(.caption2, design: .rounded))
-                                        .foregroundStyle(.gray)
+                                        .foregroundStyle(Color.candyMuted)
                                 }
                             }
                         }
@@ -239,7 +239,7 @@ private struct SettingsLinkRow: View {
                 Spacer()
                 Image(systemName: "arrow.up.right")
                     .font(.caption)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(Color.candyMuted)
             }
             .padding(.horizontal)
             .padding(.vertical, 12)

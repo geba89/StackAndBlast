@@ -325,7 +325,7 @@ private struct MissionToast: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Mission complete!")
                     .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(Color.candyMuted)
                 Text(mission.title)
                     .font(.system(.subheadline, design: .rounded))
                     .fontWeight(.bold)
@@ -368,7 +368,7 @@ private struct AchievementToast: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Achievement Unlocked!")
                     .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(Color.candyMuted)
                 Text(achievement.name)
                     .font(.system(.headline, design: .rounded))
                     .fontWeight(.bold)

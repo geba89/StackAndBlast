@@ -24,6 +24,8 @@ extension Color {
     static let candyGold = Color(uiColor: CandyPalette.gold)
     /// Dark brown used for text on gold.
     static let candyCocoa = Color(hex: 0x6B3A00)
+    /// Secondary text on the Candy background (the system gray looks muddy on purple).
+    static let candyMuted = Color.white.opacity(0.65)
 }
 
 /// Colors of a chunky 3D button: a face gradient and the darker "edge" under it.
