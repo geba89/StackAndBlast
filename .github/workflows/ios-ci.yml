@@ -1,8 +1,9 @@
 # Continuous integration for Stack & Blast.
 #
 # On every push this runs the engine unit tests (`swift test`) and compiles the
-# iOS app with Xcode for the simulator. That needs no signing or Apple account —
-# it just proves everything builds. (macOS runners are free on public repos.)
+# iOS app (Release configuration) with Xcode for the simulator. That needs no
+# signing or Apple account — it just proves everything builds. (macOS runners
+# are free on public repos.)
 name: iOS CI
 
 on:
@@ -53,12 +54,14 @@ jobs:
       # Like Xcode Cloud, use the committed package lockfile as-is
       # (-disableAutomaticPackageResolution): the build fails if
       # StackAndBlast.xcodeproj/.../Package.resolved is missing or stale.
-      - name: Build app (iOS Simulator, unsigned)
+      # Release, like the Xcode Cloud archive (the UI Screenshots workflow builds Debug),
+      # so code inside #if DEBUG can't hide a Release-only compile error.
+      - name: Build app (Release, iOS Simulator, unsigned)
         run: |
           xcodebuild build \
             -project StackAndBlast.xcodeproj \
             -scheme StackAndBlast \
-            -configuration Debug \
+            -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
             -skipMacroValidation \
