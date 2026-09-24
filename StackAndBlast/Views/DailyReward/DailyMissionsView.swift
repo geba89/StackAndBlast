@@ -65,7 +65,7 @@ struct DailyMissionsView: View {
                 .frame(maxWidth: 500)
                 .frame(maxWidth: .infinity)
             }
-            .background(Color(red: 0.118, green: 0.153, blue: 0.180).ignoresSafeArea())
+            .background(CandyBackground())
             .navigationTitle("Daily Missions")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -134,7 +134,8 @@ private struct CoinReward: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: "bitcoinsign.circle.fill")
+            CoinIcon(size: 15)
+                .saturation(isPaid ? 0 : 1) // gray once paid out
             Text("+\(amount)")
                 .fontWeight(.bold)
         }

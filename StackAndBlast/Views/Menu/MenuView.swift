@@ -30,156 +30,143 @@ struct MenuView: View {
         lastDailyBonusDate == DailyChallengeDate.key()
     }
 
+    /// Best Classic score, shown under the logo.
+    private var bestScore: Int { ScoreManager.shared.highScore(for: .classic) }
+
+    /// Brand-new players get the tutorial when they tap PLAY.
+    private var isNewPlayer: Bool {
+        !hasCompletedTutorial && StatsManager.shared.totalGamesPlayed == 0
+    }
+
     var body: some View {
         ZStack {
-            // Background
-            Color(red: 0.118, green: 0.153, blue: 0.180) // #1E272E
-                .ignoresSafeArea()
+            CandyBackground()
+            FloatingCandyBlocks()
 
             VStack(spacing: 0) {
-                // Top bar: coin balance + icons
-                HStack {
-                    // Coin balance
+                // Top bar: coin balance + icon buttons
+                HStack(spacing: 10) {
                     HStack(spacing: 6) {
-                        Image(systemName: "bitcoinsign.circle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.yellow)
+                        CoinIcon(size: 20)
                         Text("\(CoinManager.shared.balance)")
-                            .font(.system(.subheadline, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white)
+                            .font(.system(size: 17, weight: .black, design: .rounded))
+                            .foregroundStyle(Color.candyGold)
                     }
+                    .candyChip()
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(CoinManager.shared.balance) coins")
 
                     Spacer()
 
                     // Leaderboard (Game Center)
                     if LeaderboardManager.shared.isAuthenticated {
-                        Button {
+                        CandyIconButton(systemName: "list.number", size: 38, label: "Leaderboards") {
                             LeaderboardManager.shared.showLeaderboard()
-                        } label: {
-                            Image(systemName: "list.number")
-                                .font(.title3)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .padding(8)
                         }
                     }
-
-                    // Trophy (achievements)
-                    Button {
+                    CandyIconButton(systemName: "trophy.fill", size: 38, label: "Achievements") {
                         showAchievements = true
-                    } label: {
-                        Image(systemName: "trophy.fill")
-                            .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(8)
                     }
-
-                    // Cart (store)
-                    Button {
+                    CandyIconButton(systemName: "cart.fill", size: 38, label: "Store") {
                         showStore = true
-                    } label: {
-                        Image(systemName: "cart.fill")
-                            .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(8)
                     }
-
-                    // Stats
-                    Button {
+                    CandyIconButton(systemName: "chart.bar.fill", size: 38, label: "Stats") {
                         showStats = true
-                    } label: {
-                        Image(systemName: "chart.bar.fill")
-                            .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(8)
                     }
-
-                    // Settings
-                    Button {
+                    CandyIconButton(systemName: "gearshape.fill", size: 38, label: "Settings") {
                         showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(8)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
                 .padding(.top, 8)
 
                 // Centered content — constrained on iPad
-                VStack(spacing: 32) {
-                    Spacer()
+                VStack(spacing: 0) {
+                    Spacer(minLength: 8)
 
-                    // Animated title
-                    AnimatedTitleView()
+                    // Logo: gets its space first, and shrinks on small screens
+                    CandyLogo()
+                        .frame(maxWidth: 400)
+                        .layoutPriority(1)
 
-                    // Streak display
-                    if StreakManager.shared.currentStreak > 0 {
-                        HStack(spacing: 6) {
-                            Image(systemName: "flame.fill")
-                                .foregroundStyle(.orange)
-                            Text("\(StreakManager.shared.currentStreak) day streak")
-                                .font(.system(.subheadline, design: .rounded))
-                                .fontWeight(.bold)
-                                .foregroundStyle(.orange)
+                    // Best score + streak
+                    HStack(spacing: 10) {
+                        if bestScore > 0 {
+                            HStack(spacing: 6) {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 13, weight: .bold))
+                                Text("BEST")
+                                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                                    .tracking(0.6)
+                                Text(bestScore.grouped)
+                                    .font(.system(size: 16, weight: .black, design: .rounded))
+                                    .foregroundStyle(.white)
+                            }
+                            .foregroundStyle(Color(hex: 0xFFD76A))
+                            .candyChip()
+                        }
+                        if StreakManager.shared.currentStreak > 0 {
+                            HStack(spacing: 6) {
+                                Image(systemName: "flame.fill")
+                                Text("\(StreakManager.shared.currentStreak)-day streak")
+                            }
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Color(hex: 0xFF9A3C))
+                            .candyChip()
                         }
                     }
+                    .padding(.top, 10)
 
-                    Spacer()
+                    Spacer(minLength: 14)
 
                     // Offline banner — gameplay still works, only ads are unavailable
                     if !networkMonitor.isConnected {
                         HStack(spacing: 8) {
                             Image(systemName: "wifi.slash")
-                                .font(.subheadline)
                             Text("Offline mode — ads unavailable")
-                                .font(.system(.subheadline, design: .rounded))
-                                .fontWeight(.medium)
                         }
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 20)
-                        .background(Color.orange.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+                        .candyChip()
+                        .padding(.bottom, 12)
                     }
 
                     // Menu buttons
-                    VStack(spacing: 16) {
-                        MenuButton(title: "PLAY", color: Color(red: 0.882, green: 0.439, blue: 0.333)) {
+                    VStack(spacing: 12) {
+                        Button {
                             // Brand-new players learn by doing first; everyone else goes straight in
-                            let isNewPlayer = !hasCompletedTutorial && StatsManager.shared.totalGamesPlayed == 0
                             selectedMode = isNewPlayer ? .tutorial : .classic
+                        } label: {
+                            CandyMenuLabel(icon: "play.fill", title: "PLAY",
+                                           subtitle: isNewPlayer ? "Quick lesson first" : "Classic · endless",
+                                           big: true)
                         }
+                        .buttonStyle(ChunkyButtonStyle(colors: .green))
 
-                        // Daily Challenge — show completion state
+                        // Daily Challenge — once a day
                         Button {
                             if !isDailyChallengeCompleted {
                                 selectedMode = .dailyChallenge
                             }
                         } label: {
-                            HStack {
-                                Text(isDailyChallengeCompleted ? "DAILY COMPLETED" : "DAILY CHALLENGE")
-                                    .font(.system(.headline, design: .rounded))
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.white)
-                                if isDailyChallengeCompleted {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.white.opacity(0.7))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                Color(red: 0.035, green: 0.518, blue: 0.890)
-                                    .opacity(isDailyChallengeCompleted ? 0.5 : 1.0),
-                                in: RoundedRectangle(cornerRadius: 12)
-                            )
+                            CandyMenuLabel(icon: isDailyChallengeCompleted ? "checkmark.seal.fill" : "calendar",
+                                           title: isDailyChallengeCompleted ? "DAILY DONE" : "DAILY CHALLENGE",
+                                           subtitle: isDailyChallengeCompleted
+                                               ? "A new board tomorrow"
+                                               : "Today's board · \(Int(GameConstants.dailyChallengeDuration)) seconds",
+                                           tag: isDailyChallengeCompleted ? nil : "NEW")
                         }
+                        .buttonStyle(ChunkyButtonStyle(colors: .blue))
                         .disabled(isDailyChallengeCompleted)
 
-                        MenuButton(title: "BLAST RUSH", color: Color(red: 0.424, green: 0.361, blue: 0.906)) {
+                        Button {
                             selectedMode = .blastRush
+                        } label: {
+                            CandyMenuLabel(icon: "bolt.fill", title: "BLAST RUSH",
+                                           subtitle: "\(Int(GameConstants.blastRushDuration)) seconds · "
+                                               + "+\(Int(GameConstants.blastRushTimeBonusPerBlast))s per blast")
                         }
+                        .buttonStyle(ChunkyButtonStyle(colors: .orange))
 
                         // Daily missions + replayable tutorial, side by side to save space
                         HStack(spacing: 12) {
@@ -203,31 +190,22 @@ struct MenuView: View {
                             } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: "play.rectangle.fill")
-                                        .font(.subheadline)
                                     Text("WATCH AD FOR 50 COINS")
-                                        .font(.system(.subheadline, design: .rounded))
-                                        .fontWeight(.bold)
-                                    Spacer()
-                                    HStack(spacing: 3) {
-                                        Image(systemName: "bitcoinsign.circle.fill")
-                                            .font(.caption)
-                                        Text("+50")
-                                            .font(.system(.caption, design: .rounded))
-                                            .fontWeight(.bold)
-                                    }
-                                    .foregroundStyle(.yellow)
+                                        .font(.system(size: 15, weight: .black, design: .rounded))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                    Spacer(minLength: 4)
+                                    CoinAmount(amount: 50, size: 14)
                                 }
-                                .foregroundStyle(.white)
-                                .padding(.vertical, 12)
                                 .padding(.horizontal, 16)
-                                .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                                .frame(height: 46)
                             }
+                            .buttonStyle(ChunkyButtonStyle(colors: .glass, cornerRadius: 16, depth: 4))
                         }
                     }
-
-                    Spacer()
+                    .padding(.bottom, 10)
                 }
-                .padding(.horizontal, 32)
+                .padding(.horizontal, 22)
                 .frame(maxWidth: 500)
             }
         }
@@ -274,55 +252,9 @@ struct MenuView: View {
     }
 }
 
-// MARK: - Menu Button
+// MARK: - Secondary Button
 
-/// Animated "STACK & BLAST" title with floating and glowing effects.
-private struct AnimatedTitleView: View {
-    @State private var isAnimating = false
-    @State private var glowPhase: CGFloat = 0
-
-    private let blastCoral = Color(red: 0.882, green: 0.439, blue: 0.333)
-    private let blastOrange = Color(red: 1.0, green: 0.55, blue: 0.2)
-
-    var body: some View {
-        VStack(spacing: 4) {
-            // "STACK &" — gentle floating/breathing
-            Text("STACK &")
-                .font(.system(size: 42, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .offset(y: isAnimating ? -3 : 3)
-                .animation(
-                    .easeInOut(duration: 2.0).repeatForever(autoreverses: true),
-                    value: isAnimating
-                )
-
-            // "BLAST" — gradient sweep + pulsing glow + scale breathing
-            Text("BLAST")
-                .font(.system(size: 52, weight: .black, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [blastCoral, blastOrange, blastCoral],
-                        startPoint: UnitPoint(x: glowPhase - 0.5, y: 0),
-                        endPoint: UnitPoint(x: glowPhase + 0.5, y: 1)
-                    )
-                )
-                .shadow(color: blastCoral.opacity(isAnimating ? 0.6 : 0.2), radius: isAnimating ? 12 : 4)
-                .scaleEffect(isAnimating ? 1.02 : 0.98)
-                .animation(
-                    .easeInOut(duration: 1.5).repeatForever(autoreverses: true),
-                    value: isAnimating
-                )
-        }
-        .onAppear {
-            isAnimating = true
-            withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: false)) {
-                glowPhase = 1.5
-            }
-        }
-    }
-}
-
-/// Smaller, subtle menu button (MISSIONS, HOW TO PLAY) with an optional badge like "1/3".
+/// Smaller glass menu button (MISSIONS, HOW TO PLAY) with an optional badge like "1/3".
 private struct SecondaryMenuButton: View {
     let icon: String
     let title: String
@@ -331,43 +263,21 @@ private struct SecondaryMenuButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 Image(systemName: icon)
-                    .font(.subheadline)
+                    .font(.system(size: 16, weight: .bold))
                 Text(title)
-                    .font(.system(.subheadline, design: .rounded))
-                    .fontWeight(.bold)
+                    .font(.system(size: 15, weight: .black, design: .rounded))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.75)
                 if let badge {
-                    Text(badge)
-                        .font(.system(.caption, design: .rounded))
-                        .fontWeight(.heavy)
-                        .foregroundStyle(.yellow)
+                    CandyBadge(text: badge)
                 }
             }
-            .foregroundStyle(.white.opacity(0.85))
+            .padding(.horizontal, 10)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            .frame(height: 52)
         }
-    }
-}
-
-private struct MenuButton: View {
-    let title: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(.headline, design: .rounded))
-                .fontWeight(.bold)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(color, in: RoundedRectangle(cornerRadius: 12))
-        }
+        .buttonStyle(ChunkyButtonStyle(colors: .glass, cornerRadius: 18, depth: 5))
     }
 }

@@ -9,8 +9,7 @@ struct StoreView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.118, green: 0.153, blue: 0.180)
-                    .ignoresSafeArea()
+                CandyBackground()
 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -44,7 +43,7 @@ struct StoreView: View {
                                 ProductCard(
                                     title: "500 Coins",
                                     description: "A quick boost",
-                                    icon: "bitcoinsign.circle.fill",
+                                    icon: "star.circle.fill",
                                     product: small
                                 )
                             }
@@ -52,7 +51,7 @@ struct StoreView: View {
                                 ProductCard(
                                     title: "3,000 Coins",
                                     description: "Best value — 6× more!",
-                                    icon: "bitcoinsign.circle.fill",
+                                    icon: "star.circle.fill",
                                     product: large,
                                     isBestValue: true
                                 )
@@ -113,9 +112,7 @@ struct StoreView: View {
 private struct CoinBalanceHeader: View {
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "bitcoinsign.circle.fill")
-                .font(.title2)
-                .foregroundStyle(.yellow)
+            CoinIcon(size: 26)
             Text("\(CoinManager.shared.balance)")
                 .font(.system(.title2, design: .rounded))
                 .fontWeight(.bold)

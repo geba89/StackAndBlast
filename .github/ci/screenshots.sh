@@ -11,7 +11,7 @@ APP="$1"
 PYTHON="$2"
 OUT="$3"
 BUNDLE_ID="com.piotrgebski.StackAndBlast"
-SCENARIOS="menu missions tutorial classic board gameover"
+SCENARIOS="onboarding menu missions tutorial classic board gameover"
 
 mkdir -p "$OUT"
 

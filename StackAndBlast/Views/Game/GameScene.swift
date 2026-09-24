@@ -9,8 +9,11 @@ final class GameScene: SKScene {
     /// the effective padding is larger since the grid doesn't fill the screen.
     private let gridPadding: CGFloat = 16
 
-    /// Corner radius for block nodes.
-    private let blockCornerRadius: CGFloat = 4
+    /// Corner radius for block nodes: round and candy-like, scaled with the cells.
+    private var blockCornerRadius: CGFloat { max(4, (cellSize * 0.2).rounded()) }
+
+    /// Margin of the board panel around the grid.
+    private var boardPadding: CGFloat { max(6, (cellSize * 0.2).rounded()) }
 
     // MARK: - Cached Layout
 
@@ -93,7 +96,7 @@ final class GameScene: SKScene {
     // MARK: - Lifecycle
 
     override func didMove(to view: SKView) {
-        backgroundColor = UIColor(red: 0.118, green: 0.153, blue: 0.180, alpha: 1) // #1E272E
+        backgroundColor = .clear // GameView draws the Candy Pop background behind the scene
         layoutScene()
     }
 
@@ -244,14 +247,16 @@ final class GameScene: SKScene {
 
                 let inset: CGFloat = 1.0
                 let blockSize = CGSize(width: miniCellSize - inset * 2, height: miniCellSize - inset * 2)
-                let blockNode = SKShapeNode(rectOf: blockSize, cornerRadius: 3)
+                let miniRadius = max(3, (miniCellSize * 0.2).rounded())
+                let blockNode = SKShapeNode(rectOf: blockSize, cornerRadius: miniRadius)
                 blockNode.position = CGPoint(x: x, y: y)
+                blockNode.fillColor = .white // shows the candy texture's own colors
+                blockNode.strokeColor = .clear
 
                 if let powerUp = piece.powerUp {
-                    // Power-up pieces get a golden background with pulsing icon
-                    blockNode.fillColor = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 1)
-                    blockNode.strokeColor = UIColor(red: 0.65, green: 0.50, blue: 0.10, alpha: 1)
-                    blockNode.lineWidth = 1.0
+                    // Power-up pieces are golden candy with a pulsing icon
+                    blockNode.fillTexture = CandyTextures.block(color: CandyPalette.powerUpGold,
+                                                                size: blockSize, cornerRadius: miniRadius)
 
                     let label = SKLabelNode(text: powerUp.symbol)
                     label.fontSize = blockSize.width * 0.6
@@ -267,9 +272,8 @@ final class GameScene: SKScene {
                     ])
                     blockNode.run(SKAction.repeatForever(pulse))
                 } else {
-                    blockNode.fillColor = SkinManager.shared.colorForBlock(piece.color)
-                    blockNode.strokeColor = SkinManager.shared.darkColorForBlock(piece.color)
-                    blockNode.lineWidth = 0.5
+                    blockNode.fillTexture = CandyTextures.block(color: SkinManager.shared.colorForBlock(piece.color),
+                                                                size: blockSize, cornerRadius: miniRadius)
 
                     // Colorblind symbol in tray pieces
                     if SettingsManager.shared.isColorblindMode {
@@ -304,18 +308,13 @@ final class GameScene: SKScene {
         let bSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
 
         let node = SKShapeNode(rectOf: bSize, cornerRadius: blockCornerRadius)
-        // Use skinned colors instead of raw BlockColor
-        node.fillColor = SkinManager.shared.colorForBlock(color)
-        node.strokeColor = SkinManager.shared.darkColorForBlock(color)
+        // Glossy candy block in the skin's color: a texture drawn once per color and
+        // size (see CandyTextures). A white fill shows the texture's own colors.
+        node.fillColor = .white
+        node.fillTexture = CandyTextures.block(color: SkinManager.shared.colorForBlock(color),
+                                               size: bSize, cornerRadius: blockCornerRadius)
+        node.strokeColor = .clear // animated skins light up the outline themselves
         node.lineWidth = 1.0
-
-        // Subtle inner highlight (lighter strip at top) for 3D bevel effect
-        let highlightSize = CGSize(width: bSize.width - 4, height: bSize.height * 0.3)
-        let highlight = SKShapeNode(rectOf: highlightSize, cornerRadius: blockCornerRadius - 1)
-        highlight.fillColor = UIColor.white.withAlphaComponent(0.12)
-        highlight.strokeColor = .clear
-        highlight.position = CGPoint(x: 0, y: bSize.height * 0.25)
-        node.addChild(highlight)
 
         // Colorblind symbol overlay
         if SettingsManager.shared.isColorblindMode {
@@ -1194,7 +1193,9 @@ final class GameScene: SKScene {
         guard dangerFrame == nil else { return }
 
         let side = CGFloat(GameConstants.gridSize) * cellSize
-        let frame = SKShapeNode(rectOf: CGSize(width: side + 10, height: side + 10), cornerRadius: 10)
+        let outset = boardPadding + 4 // just outside the board panel
+        let frame = SKShapeNode(rectOf: CGSize(width: side + outset * 2, height: side + outset * 2),
+                                cornerRadius: boardPadding + blockCornerRadius + 4)
         frame.position = CGPoint(x: gridOrigin.x + side / 2, y: gridOrigin.y - side / 2)
         frame.fillColor = .clear
         frame.strokeColor = UIColor(red: 1.0, green: 0.25, blue: 0.2, alpha: 1)
@@ -1305,23 +1306,16 @@ final class GameScene: SKScene {
         popup.setScale(0.6)
 
         let fontSize: CGFloat = event.cascadeLevel > 0 ? 30 : 24
-        // A dark copy slightly offset acts as a drop shadow, for readability on any board
-        for (offset, color) in [(CGPoint(x: 1.5, y: -1.5), UIColor.black.withAlphaComponent(0.6)),
-                                (CGPoint.zero, UIColor.white)] {
-            let label = SKLabelNode(text: "+\(event.points)")
-            label.fontName = "HelveticaNeue-Bold"
-            label.fontSize = fontSize
-            label.fontColor = color
-            label.verticalAlignmentMode = .center
+        // A darker copy just below acts as a chunky drop shadow, readable on any board
+        for (offset, color) in [(CGPoint(x: 0, y: -2.5), CandyPalette.amber),
+                                (CGPoint.zero, CandyPalette.gold)] {
+            let label = SKLabelNode.candy("+\(event.points)", size: fontSize, color: color, weight: .black)
             label.position = offset
             popup.addChild(label)
         }
 
         if event.cascadeLevel > 0 {
-            let chain = SKLabelNode(text: "CHAIN ×\(1 << event.cascadeLevel)")
-            chain.fontName = "HelveticaNeue-Bold"
-            chain.fontSize = 13
-            chain.fontColor = previewGold
+            let chain = SKLabelNode.candy("CHAIN ×\(1 << event.cascadeLevel)", size: 13, color: .white)
             chain.verticalAlignmentMode = .top
             chain.position = CGPoint(x: 0, y: -fontSize * 0.6)
             popup.addChild(chain)
@@ -1360,20 +1354,12 @@ final class GameScene: SKScene {
         card.alpha = 0
         card.setScale(0.6)
 
-        let titleLabel = SKLabelNode(text: title)
-        titleLabel.fontName = "HelveticaNeue-Bold"
-        titleLabel.fontSize = 34
-        titleLabel.fontColor = color
-        titleLabel.verticalAlignmentMode = .center
+        let titleLabel = SKLabelNode.candy(title, size: 34, color: color, weight: .black)
         titleLabel.position = CGPoint(x: 0, y: subtitle == nil ? 0 : 12)
         card.addChild(titleLabel)
 
         if let subtitle {
-            let subtitleLabel = SKLabelNode(text: subtitle)
-            subtitleLabel.fontName = "HelveticaNeue-Medium"
-            subtitleLabel.fontSize = 14
-            subtitleLabel.fontColor = .white
-            subtitleLabel.verticalAlignmentMode = .center
+            let subtitleLabel = SKLabelNode.candy(subtitle, size: 14, color: .white, weight: .semibold)
             subtitleLabel.position = CGPoint(x: 0, y: -20)
             card.addChild(subtitleLabel)
         }
@@ -1382,9 +1368,9 @@ final class GameScene: SKScene {
         let backing = SKShapeNode(rectOf: CGSize(width: min(gridWidth * 0.9, 340),
                                                  height: subtitle == nil ? 58 : 84),
                                   cornerRadius: 16)
-        backing.fillColor = UIColor.black.withAlphaComponent(0.65)
-        backing.strokeColor = color.withAlphaComponent(0.7)
-        backing.lineWidth = 2
+        backing.fillColor = CandyPalette.ink.withAlphaComponent(0.88)
+        backing.strokeColor = color.withAlphaComponent(0.8)
+        backing.lineWidth = 2.5
         backing.zPosition = -1
         card.addChild(backing)
 
@@ -1406,12 +1392,14 @@ final class GameScene: SKScene {
         let gridCenterX = gridOrigin.x + CGFloat(GameConstants.gridSize) * cellSize / 2
         let gridCenterY = gridOrigin.y - CGFloat(GameConstants.gridSize) * cellSize / 2
 
-        let label = SKLabelNode(text: "COMBO \u{00D7}\(level)!")
-        label.fontName = "HelveticaNeue-Bold"
-        label.fontSize = 36
-        label.fontColor = level >= 4
-            ? UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1) // gold
-            : level >= 3 ? .red : .orange
+        let color: UIColor = level >= 4 ? CandyPalette.gold          // gold
+            : level >= 3 ? UIColor(hex: 0xFF5A3C) : UIColor(hex: 0xFF9A3C) // red-orange, orange
+        let text = "COMBO \u{00D7}\(level)!"
+        let label = SKLabelNode.candy(text, size: 36, color: color, weight: .black)
+        let drop = SKLabelNode.candy(text, size: 36, color: CandyPalette.ink.withAlphaComponent(0.8), weight: .black)
+        drop.position = CGPoint(x: 0, y: -3)
+        drop.zPosition = -1
+        label.addChild(drop)
         label.position = CGPoint(x: gridCenterX, y: gridCenterY)
         label.zPosition = 20
         label.setScale(0.5)
@@ -1820,9 +1808,10 @@ final class GameScene: SKScene {
                 let inset: CGFloat = 1.5
                 let bSize = CGSize(width: cellSize - inset * 2, height: cellSize - inset * 2)
                 let blockNode = SKShapeNode(rectOf: bSize, cornerRadius: blockCornerRadius)
-                blockNode.fillColor = UIColor(red: 0.85, green: 0.65, blue: 0.13, alpha: 1)
-                blockNode.strokeColor = UIColor(red: 0.65, green: 0.50, blue: 0.10, alpha: 1)
-                blockNode.lineWidth = 1.5
+                blockNode.fillColor = .white
+                blockNode.fillTexture = CandyTextures.block(color: CandyPalette.powerUpGold,
+                                                            size: bSize, cornerRadius: blockCornerRadius)
+                blockNode.strokeColor = .clear
                 blockNode.position = CGPoint(x: x, y: y)
 
                 let label = SKLabelNode(text: powerUp.symbol)
@@ -1951,20 +1940,17 @@ final class GameScene: SKScene {
                     gridOrigin.y + cellSize * 0.5)
 
         let text = willBlast ? "BLAST! \(size)" : "\(size)/\(goal)"
-        let label = SKLabelNode(text: text)
-        label.fontName = "HelveticaNeue-Bold"
-        label.fontSize = max(13, cellSize * 0.4)
-        label.fontColor = willBlast ? UIColor(red: 0.2, green: 0.12, blue: 0.0, alpha: 1) : .white
-        label.verticalAlignmentMode = .center
-        label.horizontalAlignmentMode = .center
+        let fontSize = max(13, cellSize * 0.4)
+        let label = SKLabelNode.candy(text, size: fontSize,
+                                      color: willBlast ? UIColor(hex: 0x3A2200) : .white, weight: .black)
 
-        let padding = label.fontSize * 0.6
+        let padding = fontSize * 0.6
         let pill = SKShapeNode(rectOf: CGSize(width: label.frame.width + padding * 2,
-                                              height: label.fontSize + padding),
-                               cornerRadius: (label.fontSize + padding) / 2)
-        pill.fillColor = willBlast ? previewGold : UIColor.black.withAlphaComponent(0.7)
+                                              height: fontSize + padding),
+                               cornerRadius: (fontSize + padding) / 2)
+        pill.fillColor = willBlast ? previewGold : CandyPalette.ink.withAlphaComponent(0.85)
         pill.strokeColor = willBlast ? .white : previewGold.withAlphaComponent(0.6)
-        pill.lineWidth = 1.0
+        pill.lineWidth = 1.5
         pill.position = CGPoint(x: x, y: y)
         pill.zPosition = 11 // above the dragged piece (10)
         pill.addChild(label)
@@ -2142,22 +2128,33 @@ final class GameScene: SKScene {
         addChild(gridNode)
 
         let skin = SkinManager.shared.activeSkin
-        let defaultLight = UIColor(red: 0.176, green: 0.204, blue: 0.216, alpha: 1) // #2D3436
-        let defaultDark = UIColor(red: 0.149, green: 0.173, blue: 0.184, alpha: 1)
-        let lightColor = skin.gridLightColor ?? defaultLight
-        let darkColor = skin.gridDarkColor ?? defaultDark
+        let gridSide = cellSize * CGFloat(GameConstants.gridSize)
+
+        // Board panel: a dark, see-through rounded tray the cells sit in
+        let panelSide = gridSide + boardPadding * 2
+        let panel = SKShapeNode(rectOf: CGSize(width: panelSide, height: panelSide),
+                                cornerRadius: boardPadding + blockCornerRadius)
+        panel.fillColor = CandyPalette.ink.withAlphaComponent(0.55)
+        panel.strokeColor = UIColor.white.withAlphaComponent(0.08)
+        panel.lineWidth = 2
+        panel.position = CGPoint(x: gridOrigin.x + gridSide / 2, y: gridOrigin.y - gridSide / 2)
+        panel.zPosition = -1
+        gridNode.addChild(panel)
+
+        // Cells: soft squares that look pressed in. Skins with their own grid colors
+        // keep their checkerboard; the default is a faint white.
+        let inset: CGFloat = 1.5
+        let cellSide = cellSize - inset * 2
+        let cellBox = CGSize(width: cellSide, height: cellSide)
+        let lightTexture = CandyTextures.cell(size: cellBox, cornerRadius: blockCornerRadius, fill: skin.gridLightColor)
+        let darkTexture = CandyTextures.cell(size: cellBox, cornerRadius: blockCornerRadius,
+                                             fill: skin.gridDarkColor ?? skin.gridLightColor)
 
         for row in 0..<GameConstants.gridSize {
             for col in 0..<GameConstants.gridSize {
-                let x = gridOrigin.x + CGFloat(col) * cellSize
-                let y = gridOrigin.y - CGFloat(row) * cellSize // SpriteKit y is inverted
-
-                let cell = SKShapeNode(rectOf: CGSize(width: cellSize - 1, height: cellSize - 1), cornerRadius: 2)
-                cell.position = CGPoint(x: x + cellSize / 2, y: y - cellSize / 2)
-                cell.strokeColor = .clear
-
-                let isLight = (row + col) % 2 == 0
-                cell.fillColor = isLight ? lightColor : darkColor
+                // Sprites sharing a texture draw in one batch — cheaper than 81 shape nodes
+                let cell = SKSpriteNode(texture: (row + col) % 2 == 0 ? lightTexture : darkTexture, size: cellBox)
+                cell.position = scenePosition(for: GridPosition(row: row, col: col))
                 cell.name = "cell_\(row)_\(col)"
                 gridNode.addChild(cell)
             }
@@ -2173,10 +2170,10 @@ final class GameScene: SKScene {
         let trayWidth = gridWidth + gridPadding * 2
         let trayHeight: CGFloat = cellSize * 2.5
 
-        let bg = SKShapeNode(rectOf: CGSize(width: trayWidth, height: trayHeight), cornerRadius: 12)
-        bg.fillColor = UIColor(red: 0.14, green: 0.17, blue: 0.19, alpha: 1)
-        bg.strokeColor = UIColor(red: 0.2, green: 0.23, blue: 0.25, alpha: 1)
-        bg.lineWidth = 0.5
+        let bg = SKShapeNode(rectOf: CGSize(width: trayWidth, height: trayHeight), cornerRadius: 24)
+        bg.fillColor = CandyPalette.ink.withAlphaComponent(0.45)
+        bg.strokeColor = UIColor.white.withAlphaComponent(0.07)
+        bg.lineWidth = 2
         bg.position = CGPoint(x: size.width / 2, y: trayY)
         bg.zPosition = -1
         trayNode.addChild(bg)
@@ -2217,7 +2214,7 @@ final class GameScene: SKScene {
     /// the grid goes below it. (A fixed 60pt used to let the HUD cover the top row on
     /// iPad, where the grid is sized by the screen height.)
     func setHUDBottom(_ bottom: CGFloat) {
-        let height = (bottom + 12).rounded() // + a little room above the grid
+        let height = (bottom + 18).rounded() // + room for the board panel's rim above the grid
         guard abs(height - hudHeight) >= 1 else { return }
         hudHeight = height
         if view != nil && !isTutorialLayout { layoutScene() }

@@ -1,27 +1,27 @@
 import SwiftUI
 
-/// App color palette from the GDD (section 5.1).
+/// App color palette. Block colors follow the "Candy Pop" look (see CandyUI.swift).
 extension Color {
 
     // MARK: - Block Colors
 
-    /// Coral (#E17055)
-    static let blockCoral = Color(red: 0.882, green: 0.439, blue: 0.333)
+    /// Coral (#FF6A4D)
+    static let blockCoral = Color(red: 1.0, green: 0.416, blue: 0.302)
 
-    /// Blue (#0984E3)
-    static let blockBlue = Color(red: 0.035, green: 0.518, blue: 0.890)
+    /// Blue (#2F9BFF)
+    static let blockBlue = Color(red: 0.184, green: 0.608, blue: 1.0)
 
-    /// Purple (#6C5CE7)
-    static let blockPurple = Color(red: 0.424, green: 0.361, blue: 0.906)
+    /// Purple (#9B5CFF)
+    static let blockPurple = Color(red: 0.608, green: 0.361, blue: 1.0)
 
-    /// Green (#00B894)
-    static let blockGreen = Color(red: 0.0, green: 0.722, blue: 0.580)
+    /// Green (#1FD18B)
+    static let blockGreen = Color(red: 0.122, green: 0.82, blue: 0.545)
 
-    /// Yellow (#FDCB6E)
-    static let blockYellow = Color(red: 0.992, green: 0.796, blue: 0.431)
+    /// Yellow (#FFC53D)
+    static let blockYellow = Color(red: 1.0, green: 0.773, blue: 0.239)
 
-    /// Pink (#FD79A8)
-    static let blockPink = Color(red: 0.992, green: 0.475, blue: 0.659)
+    /// Pink (#FF5FA8)
+    static let blockPink = Color(red: 1.0, green: 0.373, blue: 0.659)
 
     // MARK: - Background Colors
 

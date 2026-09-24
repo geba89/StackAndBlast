@@ -11,8 +11,7 @@ struct DailyRewardPopupView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.118, green: 0.153, blue: 0.180)
-                .ignoresSafeArea()
+            CandyBackground()
 
             VStack(spacing: 24) {
                 // Title
@@ -56,8 +55,7 @@ struct DailyRewardPopupView: View {
                 if let amount = claimedAmount {
                     VStack(spacing: 8) {
                         HStack(spacing: 6) {
-                            Image(systemName: "bitcoinsign.circle.fill")
-                                .foregroundStyle(.yellow)
+                            CoinIcon(size: 20)
                             Text("+\(amount) coins")
                                 .font(.system(.title3, design: .rounded))
                                 .fontWeight(.bold)
@@ -143,9 +141,9 @@ private struct DayRewardCell: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
                 } else {
-                    Image(systemName: "bitcoinsign.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(isCurrent ? .yellow : .gray)
+                    CoinIcon(size: 18)
+                        .saturation(isCurrent ? 1 : 0) // today's reward in gold, the rest gray
+                        .opacity(isCurrent ? 1 : 0.6)
                 }
             }
 

@@ -175,7 +175,7 @@ struct SettingsView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 32)
             }
-            .background(Color(red: 0.118, green: 0.153, blue: 0.180).ignoresSafeArea())
+            .background(CandyBackground())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)

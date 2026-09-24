@@ -15,15 +15,12 @@ struct SkinPickerView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.118, green: 0.153, blue: 0.180)
-                    .ignoresSafeArea()
+                CandyBackground()
 
                 ScrollView {
                     // Coin balance header
                     HStack(spacing: 4) {
-                        Image(systemName: "bitcoinsign.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.yellow)
+                        CoinIcon(size: 20)
                         Text("\(CoinManager.shared.balance) coins")
                             .font(.system(.headline, design: .rounded))
                             .fontWeight(.bold)
@@ -158,8 +155,7 @@ private struct SkinCard: View {
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "bitcoinsign.circle.fill")
-                                .font(.caption)
+                            CoinIcon(size: 13)
                             Text("\(price)")
                                 .font(.system(.caption, design: .rounded))
                                 .fontWeight(.bold)

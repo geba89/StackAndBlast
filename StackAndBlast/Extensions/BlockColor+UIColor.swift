@@ -1,15 +1,15 @@
 import UIKit
 
-/// UIColor mapping for SpriteKit rendering (GDD section 5.1).
+/// UIColor mapping for SpriteKit rendering — the bright "Candy Pop" palette.
 extension BlockColor {
     var uiColor: UIColor {
         switch self {
-        case .coral:  return UIColor(red: 0.882, green: 0.439, blue: 0.333, alpha: 1) // #E17055
-        case .blue:   return UIColor(red: 0.035, green: 0.518, blue: 0.890, alpha: 1) // #0984E3
-        case .purple: return UIColor(red: 0.424, green: 0.361, blue: 0.906, alpha: 1) // #6C5CE7
-        case .green:  return UIColor(red: 0.0, green: 0.722, blue: 0.580, alpha: 1)   // #00B894
-        case .yellow: return UIColor(red: 0.992, green: 0.796, blue: 0.431, alpha: 1) // #FDCB6E
-        case .pink:   return UIColor(red: 0.992, green: 0.475, blue: 0.659, alpha: 1) // #FD79A8
+        case .coral:  return UIColor(red: 1.0, green: 0.416, blue: 0.302, alpha: 1) // #FF6A4D
+        case .blue:   return UIColor(red: 0.184, green: 0.608, blue: 1.0, alpha: 1) // #2F9BFF
+        case .purple: return UIColor(red: 0.608, green: 0.361, blue: 1.0, alpha: 1) // #9B5CFF
+        case .green:  return UIColor(red: 0.122, green: 0.82, blue: 0.545, alpha: 1) // #1FD18B
+        case .yellow: return UIColor(red: 1.0, green: 0.773, blue: 0.239, alpha: 1) // #FFC53D
+        case .pink:   return UIColor(red: 1.0, green: 0.373, blue: 0.659, alpha: 1) // #FF5FA8
         }
     }
 

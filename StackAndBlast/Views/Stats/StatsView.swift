@@ -18,8 +18,7 @@ struct StatsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.118, green: 0.153, blue: 0.180)
-                    .ignoresSafeArea()
+                CandyBackground()
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -30,7 +29,7 @@ struct StatsView: View {
                             StatCard(title: "Pieces Placed", value: formatNumber(stats.totalPiecesPlaced), icon: "square.grid.3x3.fill")
                             StatCard(title: "Best Combo", value: "\(stats.highestCombo)x", icon: "bolt.fill")
                             StatCard(title: "Best Score", value: formatNumber(stats.highestSingleGameScore), icon: "trophy.fill")
-                            StatCard(title: "Coins Earned", value: formatNumber(coinManager.totalEarned), icon: "bitcoinsign.circle.fill")
+                            StatCard(title: "Coins Earned", value: formatNumber(coinManager.totalEarned), icon: "star.circle.fill")
                             StatCard(title: "Coins Spent", value: formatNumber(coinManager.totalSpent), icon: "cart.fill")
                         }
 

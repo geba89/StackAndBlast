@@ -109,20 +109,20 @@ final class SkinManager {
                 id: "default",
                 name: "Default",
                 colors: [
-                    .coral:  UIColor(red: 0.882, green: 0.439, blue: 0.333, alpha: 1),
-                    .blue:   UIColor(red: 0.035, green: 0.518, blue: 0.890, alpha: 1),
-                    .purple: UIColor(red: 0.424, green: 0.361, blue: 0.906, alpha: 1),
-                    .green:  UIColor(red: 0.0, green: 0.722, blue: 0.580, alpha: 1),
-                    .yellow: UIColor(red: 0.992, green: 0.796, blue: 0.431, alpha: 1),
-                    .pink:   UIColor(red: 0.992, green: 0.475, blue: 0.659, alpha: 1)
+                    .coral:  UIColor(red: 1.0, green: 0.416, blue: 0.302, alpha: 1),
+                    .blue:   UIColor(red: 0.184, green: 0.608, blue: 1.0, alpha: 1),
+                    .purple: UIColor(red: 0.608, green: 0.361, blue: 1.0, alpha: 1),
+                    .green:  UIColor(red: 0.122, green: 0.82, blue: 0.545, alpha: 1),
+                    .yellow: UIColor(red: 1.0, green: 0.773, blue: 0.239, alpha: 1),
+                    .pink:   UIColor(red: 1.0, green: 0.373, blue: 0.659, alpha: 1)
                 ],
                 darkColors: [
-                    .coral:  UIColor(red: 0.882, green: 0.439, blue: 0.333, alpha: 0.7),
-                    .blue:   UIColor(red: 0.035, green: 0.518, blue: 0.890, alpha: 0.7),
-                    .purple: UIColor(red: 0.424, green: 0.361, blue: 0.906, alpha: 0.7),
-                    .green:  UIColor(red: 0.0, green: 0.722, blue: 0.580, alpha: 0.7),
-                    .yellow: UIColor(red: 0.992, green: 0.796, blue: 0.431, alpha: 0.7),
-                    .pink:   UIColor(red: 0.992, green: 0.475, blue: 0.659, alpha: 0.7)
+                    .coral:  UIColor(red: 1.0, green: 0.416, blue: 0.302, alpha: 0.7),
+                    .blue:   UIColor(red: 0.184, green: 0.608, blue: 1.0, alpha: 0.7),
+                    .purple: UIColor(red: 0.608, green: 0.361, blue: 1.0, alpha: 0.7),
+                    .green:  UIColor(red: 0.122, green: 0.82, blue: 0.545, alpha: 0.7),
+                    .yellow: UIColor(red: 1.0, green: 0.773, blue: 0.239, alpha: 0.7),
+                    .pink:   UIColor(red: 1.0, green: 0.373, blue: 0.659, alpha: 0.7)
                 ],
                 unlockCondition: "Always unlocked",
                 isUnlocked: { true }

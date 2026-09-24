@@ -182,7 +182,7 @@ struct ContentView: View {
         .onAppear {
             #if DEBUG
             if let scenario = ScreenshotScenario.current {
-                hasSeenOnboarding = true
+                hasSeenOnboarding = scenario != "onboarding"
                 stageScreenshot(scenario)
                 return
             }
@@ -251,7 +251,7 @@ struct ContentView: View {
             missions.record(.combo(2))
             missions.record(.score(1_250))
         default:
-            break // "menu"
+            break // "menu", "onboarding"
         }
     }
     #endif
@@ -274,7 +274,7 @@ struct ContentView: View {
 
 #if DEBUG
 /// CI screenshots only: launching with the environment variable SCREENSHOT_SCENARIO
-/// (menu, missions, tutorial, classic, board, gameover) jumps straight to that screen,
+/// (onboarding, menu, missions, tutorial, classic, board, gameover) jumps straight to that screen,
 /// with some staged content, and skips onboarding, ads, sign-in prompts and popups.
 /// Not compiled into Release (TestFlight / App Store) builds.
 /// See .github/ci/screenshots.sh.
@@ -309,8 +309,7 @@ private struct MissionToast: View {
             Spacer()
 
             HStack(spacing: 4) {
-                Image(systemName: "bitcoinsign.circle.fill")
-                    .foregroundStyle(.yellow)
+                CoinIcon(size: 18)
                 Text("+\(mission.reward)")
                     .font(.system(.subheadline, design: .rounded))
                     .fontWeight(.bold)
@@ -321,7 +320,7 @@ private struct MissionToast: View {
         .frame(maxWidth: 400)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(red: 0.118, green: 0.153, blue: 0.180))
+                .fill(Color.candyInk.opacity(0.95))
                 .shadow(color: .black.opacity(0.5), radius: 10)
         )
         .padding(.horizontal, 20)
@@ -352,8 +351,7 @@ private struct AchievementToast: View {
             Spacer()
 
             HStack(spacing: 4) {
-                Image(systemName: "bitcoinsign.circle.fill")
-                    .foregroundStyle(.yellow)
+                CoinIcon(size: 18)
                 Text("+\(achievement.coinReward)")
                     .font(.system(.subheadline, design: .rounded))
                     .fontWeight(.bold)
@@ -364,7 +362,7 @@ private struct AchievementToast: View {
         .frame(maxWidth: 400)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(red: 0.118, green: 0.153, blue: 0.180))
+                .fill(Color.candyInk.opacity(0.95))
                 .shadow(color: .black.opacity(0.5), radius: 10)
         )
         .padding(.horizontal, 20)

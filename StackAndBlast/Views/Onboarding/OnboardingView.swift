@@ -16,8 +16,8 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            // #1E272E — matches Color.background from theme
-            Color(red: 0.118, green: 0.153, blue: 0.180).ignoresSafeArea()
+            // Candy Pop background (see CandyUI.swift)
+            CandyBackground()
 
             VStack(spacing: 0) {
                 TabView(selection: $currentPage) {

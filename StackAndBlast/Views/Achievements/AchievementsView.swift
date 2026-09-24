@@ -13,8 +13,7 @@ struct AchievementsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.118, green: 0.153, blue: 0.180)
-                    .ignoresSafeArea()
+                CandyBackground()
 
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -82,9 +81,9 @@ private struct AchievementCard: View {
 
             // Coin reward
             HStack(spacing: 4) {
-                Image(systemName: "bitcoinsign.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(isUnlocked ? Color(red: 0.0, green: 0.722, blue: 0.580) : .gray)
+                CoinIcon(size: 12)
+                    .saturation(isUnlocked ? 1 : 0) // gray until earned
+                    .opacity(isUnlocked ? 1 : 0.6)
                 Text(isUnlocked ? "Earned" : "+\(achievement.coinReward)")
                     .font(.system(.caption2, design: .rounded))
                     .fontWeight(.semibold)

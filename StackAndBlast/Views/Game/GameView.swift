@@ -21,8 +21,11 @@ struct GameView: View {
 
     var body: some View {
         ZStack {
+            // Candy Pop background, showing through the transparent game scene
+            CandyBackground()
+
             // SpriteKit game scene
-            SpriteView(scene: scene)
+            SpriteView(scene: scene, options: [.allowsTransparency])
                 .ignoresSafeArea()
 
             if let card = viewModel.tutorialCard {
@@ -38,132 +41,91 @@ struct GameView: View {
                 .transition(.opacity)
             } else {
                 // HUD overlay
-                VStack {
-                    // Top bar: Score + Combo + Timer + Pause
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("SCORE")
-                                .font(.system(.caption2, design: .rounded))
-                                .fontWeight(.medium)
-                                .foregroundStyle(.gray)
-                            Text("\(viewModel.engine.score)")
-                                .font(.system(.title2, design: .rounded))
-                                .fontWeight(.bold)
-                                .foregroundStyle(.white)
-                                .contentTransition(.numericText())
-                                .animation(.spring(duration: 0.3), value: viewModel.engine.score)
-                        }
-
-                        // Current blast threshold indicator
-                        VStack(spacing: 2) {
-                            Text("GOAL")
-                                .font(.system(.caption2, design: .rounded))
-                                .fontWeight(.medium)
-                                .foregroundStyle(.gray)
-                            Text("\(viewModel.engine.currentMinGroupSize)")
-                                .font(.system(.title3, design: .rounded))
-                                .fontWeight(.bold)
-                                .foregroundStyle(Color(red: 1.0, green: 0.6, blue: 0.2))
-                                .contentTransition(.numericText())
-                                .animation(.spring(duration: 0.3), value: viewModel.engine.currentMinGroupSize)
-                        }
-
-                        // Coin balance
-                        HStack(spacing: 3) {
-                            Image(systemName: "bitcoinsign.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.yellow)
-                            Text("\(CoinManager.shared.balance)")
-                                .font(.system(.caption, design: .rounded))
-                                .fontWeight(.bold)
-                                .foregroundStyle(.yellow)
-                        }
-
-                        Spacer()
-
-                        // Combo counter — visible during blast cascades
-                        if viewModel.currentCombo > 1 {
-                            ComboLabel(level: viewModel.currentCombo)
-                                .transition(.scale.combined(with: .opacity))
-                                .animation(.spring(duration: 0.3, bounce: 0.4), value: viewModel.currentCombo)
-                        }
-
-                        // Countdown timer (Blast Rush and Daily Challenge)
-                        if viewModel.gameMode == .blastRush || viewModel.gameMode == .dailyChallenge {
+                VStack(spacing: 8) {
+                    // Top row: pause · score (best score or combo above it) · coins
+                    ZStack {
+                        HStack {
+                            CandyIconButton(systemName: "pause.fill", size: 44, label: "Pause") {
+                                viewModel.togglePause()
+                            }
                             Spacer()
-                            BlastRushTimerLabel(timeRemaining: viewModel.timeRemaining)
+                            HStack(spacing: 6) {
+                                CoinIcon(size: 20)
+                                Text("\(CoinManager.shared.balance)")
+                                    .font(.system(size: 17, weight: .black, design: .rounded))
+                                    .foregroundStyle(Color.candyGold)
+                                    .contentTransition(.numericText())
+                            }
+                            .candyChip()
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(CoinManager.shared.balance) coins")
                         }
-
-                        Spacer()
-
-                        Button {
-                            viewModel.togglePause()
-                        } label: {
-                            Image(systemName: "pause.fill")
-                                .font(.title3)
-                                .foregroundStyle(.white)
-                                .padding(8)
-                        }
+                        ScoreDisplay(score: viewModel.engine.score,
+                                     best: viewModel.bestScoreBeforeGame,
+                                     combo: viewModel.currentCombo)
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                    .frame(height: 64)
 
-                    // Coin power-up buttons — usable during active play only, so they fade out
-                    // when paused or at game over. They keep their space, so the board never moves.
-                    HStack(spacing: 10) {
-                        Spacer()
+                    // Second row: goal (+ the clock in timed modes) · coin power-ups
+                    HStack(spacing: 8) {
+                        GoalChip(goal: viewModel.engine.currentMinGroupSize)
+                        if viewModel.gameMode == .blastRush || viewModel.gameMode == .dailyChallenge {
+                            TimerChip(timeRemaining: viewModel.timeRemaining)
+                        }
+                        Spacer(minLength: 4)
 
-                        // Coin Bomb
-                        CoinPowerUpButton(
-                            icon: "flame.fill",
-                            remaining: GameConstants.maxCoinBombsPerGame - viewModel.coinBombsUsed,
-                            maxUses: GameConstants.maxCoinBombsPerGame,
-                            price: GameConstants.coinBombPrice,
-                            isEnabled: viewModel.canUseCoinBomb,
-                            isActive: viewModel.isCoinBombMode
-                        ) {
-                            // Tapping again while targeting backs out (coins are only spent on detonation)
-                            if viewModel.isCoinBombMode {
-                                viewModel.cancelCoinBomb()
-                            } else {
-                                viewModel.activateCoinBomb()
+                        // Coin power-ups — usable during active play only, so they fade out
+                        // when paused or at game over. They keep their space, so the board never moves.
+                        HStack(spacing: 10) {
+                            CoinPowerUpButton(
+                                icon: "flame.fill",
+                                name: "Bomb",
+                                remaining: GameConstants.maxCoinBombsPerGame - viewModel.coinBombsUsed,
+                                price: GameConstants.coinBombPrice,
+                                isEnabled: viewModel.canUseCoinBomb,
+                                isActive: viewModel.isCoinBombMode
+                            ) {
+                                // Tapping again while targeting backs out (coins are only spent on detonation)
+                                if viewModel.isCoinBombMode {
+                                    viewModel.cancelCoinBomb()
+                                } else {
+                                    viewModel.activateCoinBomb()
+                                }
+                            }
+
+                            // Shuffle and Undo (hidden in Daily Challenge — its pieces are fixed)
+                            if viewModel.gameMode != .dailyChallenge {
+                                CoinPowerUpButton(
+                                    icon: "shuffle",
+                                    name: "Shuffle",
+                                    remaining: GameConstants.maxShufflesPerGame - viewModel.shufflesUsed,
+                                    price: GameConstants.coinShufflePrice,
+                                    isEnabled: viewModel.canUseShuffle,
+                                    isActive: false
+                                ) {
+                                    viewModel.useShuffle()
+                                }
+
+                                CoinPowerUpButton(
+                                    icon: "arrow.uturn.backward",
+                                    name: "Undo",
+                                    remaining: GameConstants.maxUndosPerGame - viewModel.undosUsed,
+                                    price: GameConstants.coinUndoPrice,
+                                    isEnabled: viewModel.canUseUndo,
+                                    isActive: false
+                                ) {
+                                    viewModel.useUndo()
+                                }
                             }
                         }
-
-                        // Shuffle and Undo (hidden in Daily Challenge — its pieces are fixed)
-                        if viewModel.gameMode != .dailyChallenge {
-                            CoinPowerUpButton(
-                                icon: "shuffle",
-                                remaining: GameConstants.maxShufflesPerGame - viewModel.shufflesUsed,
-                                maxUses: GameConstants.maxShufflesPerGame,
-                                price: GameConstants.coinShufflePrice,
-                                isEnabled: viewModel.canUseShuffle,
-                                isActive: false
-                            ) {
-                                viewModel.useShuffle()
-                            }
-
-                            CoinPowerUpButton(
-                                icon: "arrow.uturn.backward",
-                                remaining: GameConstants.maxUndosPerGame - viewModel.undosUsed,
-                                maxUses: GameConstants.maxUndosPerGame,
-                                price: GameConstants.coinUndoPrice,
-                                isEnabled: viewModel.canUseUndo,
-                                isActive: false
-                            ) {
-                                viewModel.useUndo()
-                            }
-                        }
+                        .opacity(showsPowerUps ? 1 : 0)
+                        .allowsHitTesting(showsPowerUps)
+                        .accessibilityHidden(!showsPowerUps)
+                        .animation(.easeInOut(duration: 0.2), value: showsPowerUps)
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 4)
-                    .opacity(showsPowerUps ? 1 : 0)
-                    .allowsHitTesting(showsPowerUps)
-                    .accessibilityHidden(!showsPowerUps)
-                    .animation(.easeInOut(duration: 0.2), value: showsPowerUps)
                     // Where the HUD ends → the scene lays the grid out just below it
                     .background(HUDBottomReporter { bottom in
-                        // Not mid-blast: the combo label can stretch the top bar for a moment
+                        // Not mid-blast: nothing in the HUD should move the board then
                         guard !viewModel.isAnimating else { return }
                         scene.setHUDBottom(bottom)
                     })
@@ -176,12 +138,13 @@ struct GameView: View {
                                 ? "Tap the grid to drop your bomb · tap 🔥 again to cancel"
                                 : "Tap the grid to drop your bomb"
                         )
-                        .padding(.top, 8)
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
                     Spacer()
                 }
+                .padding(.horizontal, 14)
+                .padding(.top, 6)
                 .animation(.easeInOut(duration: 0.2), value: viewModel.isBombMode || viewModel.isCoinBombMode)
             }
 
@@ -246,33 +209,75 @@ private struct HUDBottomReporter: View {
     }
 }
 
-// MARK: - Combo Label
+// MARK: - HUD Pieces
 
-/// Displays the cascade combo multiplier with escalating visual effects per GDD.
-private struct ComboLabel: View {
-    let level: Int
-
-    private var color: Color {
-        switch level {
-        case 2: return .orange
-        case 3: return .red
-        default: return Color(red: 1.0, green: 0.84, blue: 0.0) // Gold
-        }
-    }
+/// The score in the middle of the HUD. Above it: the best score to beat, "NEW BEST!"
+/// once it's beaten, or the combo while a cascade is going.
+private struct ScoreDisplay: View {
+    let score: Int
+    let best: Int
+    let combo: Int
 
     var body: some View {
-        Text("×\(level)")
-            .font(.system(size: level >= 4 ? 32 : 28, weight: .black, design: .rounded))
-            .foregroundStyle(color)
-            .shadow(color: color.opacity(level >= 3 ? 0.8 : 0), radius: 8)
+        VStack(spacing: 0) {
+            Group {
+                if combo > 1 {
+                    Text("COMBO ×\(combo)")
+                        .foregroundStyle(combo >= 4 ? Color.candyGold
+                                         : combo >= 3 ? Color(hex: 0xFF5A3C) : Color(hex: 0xFF9A3C))
+                        .transition(.scale.combined(with: .opacity))
+                } else if best > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "crown.fill")
+                        Text(score > best ? "NEW BEST!" : best.grouped)
+                    }
+                    .foregroundStyle(Color(hex: 0xFFD76A))
+                }
+            }
+            .font(.system(size: 14, weight: .heavy, design: .rounded))
+            .frame(height: 17)
+
+            Text(score.grouped)
+                .font(.system(size: 44, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .shadow(color: Color(hex: 0x140A46, opacity: 0.55), radius: 0, y: 4)
+                .contentTransition(.numericText())
+                .animation(.spring(duration: 0.3), value: score)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+        .frame(maxWidth: 190)
+        .animation(.spring(duration: 0.3, bounce: 0.4), value: combo)
+        .accessibilityElement(children: .combine)
     }
 }
 
-// MARK: - Blast Rush Timer Label
+/// "◎ GOAL 12" — how many connected blocks a blast needs right now.
+private struct GoalChip: View {
+    let goal: Int
 
-/// Displays the countdown timer for Blast Rush mode.
-/// Turns red and pulses when under 10 seconds remaining.
-private struct BlastRushTimerLabel: View {
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "target")
+                .font(.system(size: 14, weight: .bold))
+            Text("GOAL")
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .tracking(0.6)
+            Text("\(goal)")
+                .font(.system(size: 19, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .contentTransition(.numericText())
+                .animation(.spring(duration: 0.3), value: goal)
+        }
+        .foregroundStyle(Color(hex: 0xFFB86B))
+        .candyChip()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Goal: \(goal) connected blocks")
+    }
+}
+
+/// Countdown for Blast Rush and the Daily Challenge. Turns red and blinks under 10 seconds.
+private struct TimerChip: View {
     let timeRemaining: TimeInterval
 
     private var isUrgent: Bool { timeRemaining < 10 }
@@ -286,12 +291,56 @@ private struct BlastRushTimerLabel: View {
     }
 
     var body: some View {
-        Text(formattedTime)
-            .font(.system(.title3, design: .monospaced))
-            .fontWeight(.bold)
-            .foregroundStyle(isUrgent ? .red : .white)
-            .opacity(isUrgent ? (Int(timeRemaining * 5) % 2 == 0 ? 1.0 : 0.6) : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: timeRemaining)
+        HStack(spacing: 5) {
+            Image(systemName: "timer")
+                .font(.system(size: 14, weight: .bold))
+            Text(formattedTime)
+                .font(.system(size: 17, weight: .black, design: .rounded))
+                .monospacedDigit()
+        }
+        .foregroundStyle(isUrgent ? Color(hex: 0xFF6B6B) : .white)
+        .opacity(isUrgent ? (Int(timeRemaining * 5) % 2 == 0 ? 1.0 : 0.6) : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: timeRemaining)
+        .candyChip()
+    }
+}
+
+/// A coin power-up: a chunky purple button with a count badge, its price below.
+private struct CoinPowerUpButton: View {
+    let icon: String
+    let name: String
+    let remaining: Int
+    let price: Int
+    let isEnabled: Bool
+    /// Bomb targeting in progress (tap again to cancel).
+    let isActive: Bool
+    let action: () -> Void
+
+    private var isUsable: Bool { isEnabled || isActive }
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Button(action: action) {
+                Image(systemName: icon)
+                    .font(.system(size: 19, weight: .bold))
+                    .frame(width: 44, height: 40)
+            }
+            .buttonStyle(ChunkyButtonStyle(colors: isActive ? .orange : .purple, cornerRadius: 14, depth: 4))
+            .disabled(!isUsable)
+            .overlay(alignment: .topTrailing) {
+                Text("\(remaining)")
+                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(Circle().fill(Color(hex: 0xFF4D6D)))
+                    .offset(x: 6, y: -6)
+                    .opacity(isUsable ? 1 : 0.6)
+            }
+            CoinAmount(amount: price, size: 11)
+                .opacity(isUsable ? 1 : 0.55)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name), \(remaining) left, \(price) coins")
     }
 }
 
@@ -306,36 +355,55 @@ private struct PauseOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.6)
+            Color.black.opacity(0.55)
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
+            VStack(spacing: 22) {
                 Text("PAUSED")
-                    .font(.system(size: 36, weight: .black, design: .rounded))
+                    .font(.system(size: 40, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
+                    .shadow(color: Color(hex: 0x2A1B7A), radius: 0, y: 4)
 
                 VStack(spacing: 12) {
-                    PauseButton(title: "RESUME", color: Color(red: 0.0, green: 0.722, blue: 0.580)) {
-                        onResume()
-                    }
-                    PauseButton(title: "SETTINGS", color: Color(red: 0.4, green: 0.4, blue: 0.45)) {
-                        onSettings()
-                    }
+                    PauseButton(title: "RESUME", icon: "play.fill", colors: .green, action: onResume)
                     if let onRestart {
-                        PauseButton(title: "RESTART", color: Color(red: 0.035, green: 0.518, blue: 0.890)) {
-                            onRestart()
-                        }
+                        PauseButton(title: "RESTART", icon: "arrow.counterclockwise", colors: .blue, action: onRestart)
                     }
-                    PauseButton(title: "QUIT", color: Color(red: 0.424, green: 0.361, blue: 0.906)) {
-                        onQuit()
-                    }
+                    PauseButton(title: "SETTINGS", icon: "gearshape.fill", colors: .glass, action: onSettings)
+                    PauseButton(title: "QUIT", icon: "house.fill", colors: .orange, action: onQuit)
                 }
             }
-            .frame(maxWidth: 400)
-            .padding(32)
+            .padding(28)
+            .frame(maxWidth: 360)
+            .background(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .fill(LinearGradient(colors: [.candyTop, .candyBottom], startPoint: .top, endPoint: .bottom))
+            )
+            .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1.5))
+            .shadow(color: .black.opacity(0.4), radius: 24, y: 12)
+            .padding(.horizontal, 32)
         }
     }
 }
+
+private struct PauseButton: View {
+    let title: String
+    let icon: String
+    let colors: CandyButtonColors
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 19, weight: .black, design: .rounded))
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+        }
+        .buttonStyle(ChunkyButtonStyle(colors: colors, cornerRadius: 18, depth: 5))
+    }
+}
+
+// MARK: - Tutorial Card
 
 /// The tutorial's instruction card: step, title, what to do (or what just
 /// happened), and the NEXT / LET'S PLAY! button once the move has played out.
@@ -344,30 +412,26 @@ private struct TutorialCardView: View {
     let onButton: () -> Void
     let onSkip: () -> Void
 
-    private let coral = Color(red: 0.882, green: 0.439, blue: 0.333)
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text(card.step)
-                    .font(.system(.caption, design: .rounded))
-                    .fontWeight(.bold)
-                    .foregroundStyle(coral)
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundStyle(Color.candyGold)
                 Text(card.title)
-                    .font(.system(.headline, design: .rounded))
-                    .fontWeight(.black)
+                    .font(.system(size: 18, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
                 if card.canSkip {
                     Button("Skip", action: onSkip)
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(.gray)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
             }
 
             Text(card.message)
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.92))
                 .fixedSize(horizontal: false, vertical: true)
                 // Animate the switch from instruction → result
                 .id(card.message)
@@ -378,22 +442,17 @@ private struct TutorialCardView: View {
                     Spacer()
                     Button(action: onButton) {
                         Text(buttonTitle)
-                            .font(.system(.subheadline, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
-                            .background(coral, in: Capsule())
+                            .font(.system(size: 16, weight: .black, design: .rounded))
+                            .padding(.horizontal, 22)
+                            .frame(height: 40)
                     }
+                    .buttonStyle(ChunkyButtonStyle(colors: .green, cornerRadius: 14, depth: 4))
                 }
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(red: 0.118, green: 0.153, blue: 0.180).opacity(0.95))
-        )
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(coral.opacity(0.6), lineWidth: 1))
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.candyInk.opacity(0.8)))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.candyGold.opacity(0.55), lineWidth: 1.5))
         .frame(maxWidth: 500)
         .padding(.horizontal)
         .padding(.top, 8)
@@ -410,79 +469,16 @@ private struct HintBanner: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color(hex: 0xFF9A3C))
             Text(text)
-                .font(.system(.subheadline, design: .rounded))
-                .fontWeight(.semibold)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color.black.opacity(0.75), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.orange.opacity(0.6), lineWidth: 1))
+        .background(Capsule().fill(Color.candyInk.opacity(0.88)))
+        .overlay(Capsule().strokeBorder(Color(hex: 0xFF9A3C).opacity(0.7), lineWidth: 1.5))
         .padding(.horizontal)
         .allowsHitTesting(false)
-    }
-}
-
-/// Compact button for coin-purchasable power-ups shown during gameplay.
-private struct CoinPowerUpButton: View {
-    let icon: String
-    let remaining: Int
-    let maxUses: Int
-    let price: Int
-    let isEnabled: Bool
-    let isActive: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption)
-                Text("\(remaining)/\(maxUses)")
-                    .font(.system(.caption2, design: .rounded))
-                    .fontWeight(.bold)
-                HStack(spacing: 2) {
-                    Image(systemName: "bitcoinsign.circle.fill")
-                        .font(.system(size: 9))
-                    Text("\(price)")
-                        .font(.system(.caption2, design: .rounded))
-                        .fontWeight(.bold)
-                }
-                .foregroundStyle(.yellow)
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(isActive ? Color.orange.opacity(0.6) : Color.white.opacity(isEnabled ? 0.15 : 0.05))
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(isActive ? Color.orange : Color.clear, lineWidth: 1.5)
-                    )
-            )
-            .opacity(isEnabled || isActive ? 1.0 : 0.4)
-        }
-        .disabled(!isEnabled && !isActive)
-    }
-}
-
-private struct PauseButton: View {
-    let title: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(.headline, design: .rounded))
-                .fontWeight(.bold)
-                .foregroundStyle(.white)
-                .frame(maxWidth: 280)
-                .padding(.vertical, 14)
-                .background(color, in: RoundedRectangle(cornerRadius: 12))
-        }
     }
 }

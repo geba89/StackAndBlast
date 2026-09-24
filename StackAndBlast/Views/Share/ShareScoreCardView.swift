@@ -19,7 +19,7 @@ struct ScoreCardView: View {
                 Text(gameModeLabel)
                     .font(.system(.caption, design: .rounded))
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color(red: 0.882, green: 0.439, blue: 0.333))
+                    .foregroundStyle(Color.candyGold)
             }
 
             // Score
@@ -27,9 +27,7 @@ struct ScoreCardView: View {
                 Text("SCORE")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.gray)
-                Text("\(score)")
-                    .font(.system(size: 48, weight: .black, design: .rounded))
-                    .foregroundStyle(Color(red: 0.882, green: 0.439, blue: 0.333))
+                OutlinedTitle(text: score.grouped, size: 48)
             }
 
             // Stats row
@@ -50,10 +48,11 @@ struct ScoreCardView: View {
         .frame(width: 320)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(red: 0.118, green: 0.153, blue: 0.180))
+                .fill(LinearGradient(colors: [.candyTop, .candyMid, .candyBottom],
+                                     startPoint: .top, endPoint: .bottom))
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .strokeBorder(Color(red: 0.882, green: 0.439, blue: 0.333).opacity(0.3), lineWidth: 1)
+                        .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
                 )
         )
     }
