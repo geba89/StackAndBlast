@@ -443,14 +443,27 @@ when the player taps the "USE BOMB" button on the game over screen.
 To test: start a Classic game, fill the grid until game over occurs,
 then tap "USE BOMB" to trigger the rewarded ad flow.
 
-INTERNET REQUIREMENT:
-The main menu disables game mode buttons when no internet connection
-is detected. This is because the rewarded ad system requires
-connectivity to pre-load ads. The game itself runs entirely offline
-once a game session has started.
+OFFLINE PLAY:
+The whole game works offline. Without a connection the menu shows an
+"Offline mode — ads unavailable" banner, and rewarded-ad offers are
+hidden.
 
-No login or account creation is required. No in-app purchases.
+IN-APP PURCHASES:
+Remove Ads, two coin packs, a starter bundle and two skin bundles
+(Store, from the cart icon on the main menu). Restore Purchases is in
+Settings.
+
+RATINGS:
+The app uses Apple's standard rating prompt (requestReview) after a
+new personal best, for players with at least 5 games. There is no
+reward of any kind for rating the app.
+
+No login or account creation is required.
 ```
+
+**Before submitting:** set `AppStoreLinks.appID` (StackAndBlast/Models/AppStoreLinks.swift) to
+the app's Apple ID from App Store Connect, so share texts link to the App Store and Settings
+shows "Rate Stack & Blast".
 
 ### Demo Account
 Not applicable — no login system.

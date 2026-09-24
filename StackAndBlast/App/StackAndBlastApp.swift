@@ -14,6 +14,9 @@ struct StackAndBlastApp: App {
 
         // Start listening for StoreKit transactions (IAP)
         StoreManager.shared.startTransactionListener()
+
+        // Remember the first launch — the rating prompt waits a couple of days
+        _ = ReviewPromptManager.shared
     }
 
     var body: some Scene {

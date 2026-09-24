@@ -83,6 +83,10 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit --quiet -m "docs: simulator screenshots [skip ci]"
-          # Fails if the branch moved on meanwhile — the next run will take new ones
-          git push origin "HEAD:refs/heads/$BRANCH" \
-            || echo "::warning::The branch moved on during the run; screenshots not committed"
+          # The branch may have moved on during the run (e.g. a "[skip ci]" push): the
+          # screenshots only touch Docs/screenshots, so rebase onto it and try again
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:refs/heads/$BRANCH"; then exit 0; fi
+            git pull --rebase --quiet origin "$BRANCH" || break
+          done
+          echo "::warning::Could not push the screenshots to $BRANCH"

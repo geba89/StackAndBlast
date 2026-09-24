@@ -114,11 +114,11 @@ enum ShareHelper {
 
         guard let image = renderer.uiImage else { return }
 
-        // TODO: Replace with actual App Store URL
-        let appStoreURL = "https://apps.apple.com/app/stack-and-blast/id000000000"
+        // The App Store link, once the app's ID is set (see AppStoreLinks)
+        let link = AppStoreLinks.appPage.map { "\n\($0.absoluteString)" } ?? ""
         // Daily Challenge: the Wordle-style emoji summary (everyone had the same pieces)
-        let text = dailySummary.map { "\($0)\n\(appStoreURL)" }
-            ?? "I scored \(score) in Stack & Blast! Can you beat me? \(appStoreURL)"
+        let text = dailySummary.map { "\($0)\(link)" }
+            ?? "I scored \(score.grouped) in Stack & Blast! Can you beat me?\(link)"
 
         let activityVC = UIActivityViewController(
             activityItems: [image, text],

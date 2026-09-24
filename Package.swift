@@ -37,6 +37,7 @@ let package = Package(
                 "Services/SettingsManager.swift",
                 "Services/CoinManager.swift",
                 "Services/MissionManager.swift",
+                "Services/ReviewPromptManager.swift",
             ]
         ),
         .testTarget(

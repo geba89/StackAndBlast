@@ -266,7 +266,24 @@ the next set. Code: `Models/DailyMission.swift`, `Services/MissionManager.swift`
 ### Daily Challenge Share
 
 After a Daily Challenge, SHARE adds a spoiler-free, Wordle-style summary: medal, score, best combo and
-one colored square per blast (`Models/DailyChallengeShare.swift`).
+one colored square per blast (`Models/DailyChallengeShare.swift`). Share texts include the App Store
+link once `AppStoreLinks.appID` is set.
+
+### App Store Ratings
+
+Apple's own rating prompt (SwiftUI `requestReview`) appears at a **happy moment**, 1.5 s into the game
+over screen, when all of these hold (`Services/ReviewPromptManager.swift`, unit-tested):
+
+- the game set a new personal best (beating an earlier one), or won a Daily Challenge gold medal
+- at least 5 finished games, and the app was first opened at least 2 days ago
+- not asked yet in this app version, and not in the last 60 days
+
+Apple then decides whether the prompt really shows (at most 3 times a year per person; never in TestFlight
+builds; always in Xcode debug runs). The app is never told whether the player rated. Settings also has
+**Rate Stack & Blast** (opens the App Store's "Write a Review" page) once `AppStoreLinks.appID` is set.
+
+No rewards for ratings: the App Store Review Guidelines forbid compensating players — coins included — for
+ratings or reviews (3.2.2), and custom rating pop-ups (5.6.1).
 
 ---
 
@@ -371,35 +388,41 @@ piece, a glowing target and a hand hint; drops elsewhere are rejected:
 
 ### 8.2 Main Menu
 
-- **Title:** "STACK &" / "BLAST" (coral accent)
-- **Buttons:** PLAY (Classic), DAILY CHALLENGE, BLAST RUSH
-- **Top-right icons:** Stats (chart.bar.fill), Settings (gearshape.fill)
-- All game buttons disabled when offline (NetworkMonitor)
-- Daily Challenge button shows completion state after playing
+- **Logo:** `CandyLogo` — white "STACK &", golden outlined "BLAST!", a row of candy blocks and a slowly
+  turning sunburst; candy blocks float around the edges
+- **Chips:** BEST (Classic high score) and the daily streak
+- **Buttons (chunky 3D):** PLAY (green; a quick lesson first for brand-new players), DAILY CHALLENGE (blue,
+  "NEW" until played, then "DAILY DONE"), BLAST RUSH (orange), MISSIONS (n/3) and HOW TO PLAY
+- **Top bar:** coin chip; round glass icons for leaderboards (when signed in to Game Center), achievements,
+  store, stats, settings
+- Offline: a banner says ads are unavailable; everything else works
 
 ### 8.3 Game View
 
-- SpriteKit scene hosted in SwiftUI via `SpriteView` (`.resizeFill`)
-- **HUD overlay (top):** Score, GOAL (current minimum group size), Combo counter (when active), Timer (timed modes), Pause button
-- Score uses animated `.numericText()` content transition
-- Timer uses monospaced font with urgency pulsing under 10 seconds
+- SpriteKit scene hosted in SwiftUI via a transparent `SpriteView` (`.resizeFill`) over `CandyBackground`
+- **HUD, top row:** pause button · big centered score (above it: the best score to beat, "NEW BEST!" once
+  beaten, or "COMBO ×N" during a cascade) · coin chip
+- **HUD, second row:** GOAL chip (current minimum group size), timer chip in timed modes (red and blinking
+  under 10 s), and the coin power-ups as chunky purple buttons with a count badge and price
+- GameView measures where the HUD ends and the scene lays the grid out below it (`setHUDBottom`)
 
 ### 8.4 Pause Menu
 
-Semi-transparent overlay with 4 buttons:
+Card over a dimmed game, with chunky buttons:
 - **RESUME** (green)
-- **SETTINGS** (gray)
-- **RESTART** (blue)
-- **QUIT** (purple)
+- **RESTART** (blue; not in the Daily Challenge)
+- **SETTINGS** (glass)
+- **QUIT** (orange)
 
 ### 8.5 Game Over
 
-Modal overlay with dimmed background:
-- Score (large coral number)
-- Stat row: blasts, best combo, pieces placed
-- **USE BOMB** button (gradient orange-red, flame icon, "Watch ad to clear 6x6 area") -- hidden after use
-- **PLAY AGAIN** button (coral)
-- **MAIN MENU** text button
+Gradient card over a dimmed game (scrolls on small screens if every button is shown):
+- "GAME OVER", the score in big outlined gold, a pulsing **NEW BEST!** ribbon or the best score to beat
+- Coins earned and the Daily Challenge medal
+- Stat tiles: blasts, best combo, pieces placed
+- **USE BOMB** / **DOUBLE SCORE** (rewarded ads, Classic), **UNDO LAST MOVE** (coins, Classic)
+- **PLAY AGAIN** (green), **SHARE** and **MENU**
+- May show Apple's rating prompt (see "App Store Ratings")
 
 ### 8.6 Settings
 
@@ -409,7 +432,7 @@ Modal overlay with dimmed background:
 | Grid Size | Segmented picker: 8×8, 9×9, 10×10, 12×12 |
 | Cosmetics | Block Skins button → SkinPickerView |
 | Power-Ups Legend | Lists all 3 power-ups with symbols and descriptions |
-| Links | Privacy Policy, Terms of Use, FAQ & Support, Contact Us |
+| Links | Rate Stack & Blast (once the App Store ID is set), Privacy Policy, Terms of Use, FAQ & Support, Contact Us |
 
 Grid size change takes effect on the next new game.
 
@@ -425,9 +448,10 @@ Grid size change takes effect on the next new game.
 
 ### Layout
 
-- **Background:** #1E272E (deep charcoal)
-- **Grid:** Centered checkerboard with alternating dark gray shades (#2D3436 / slightly darker)
-- **Tray:** Subtle background pill at bottom with pieces rendered at 0.6x scale
+- **Background:** transparent scene over SwiftUI's `CandyBackground` (purple → navy gradient, soft glows)
+- **Board:** dark translucent rounded panel; cells are sprites sharing one "pressed-in" texture
+  (`CandyTextures.cell`) — skins with grid colors keep their checkerboard
+- **Tray:** dark translucent rounded panel at the bottom, pieces at 0.6x scale
 - Cell size calculated to fit both width and height constraints
 - iPad grid is capped so it doesn't fill the entire screen
 
@@ -445,10 +469,10 @@ Grid size change takes effect on the next new game.
 
 ### Block Rendering
 
-- `SKShapeNode` with rounded rectangle (cornerRadius: 4)
-- Colors from active skin via `SkinManager`
-- Stroke = dark variant of fill color
-- Inner highlight strip (top 30%, white 12% opacity) for 3D bevel effect
+- `SKShapeNode` with a rounded rectangle (corner radius 20% of the cell), filled with a glossy candy
+  texture (`CandyTextures.block`: light top, dark bottom bevel, gloss, shine dot), drawn once per color
+  and size and cached
+- Colors from the active skin via `SkinManager`; animated skins light up the (normally clear) outline
 - **Colorblind mode:** Unicode symbol label centered on block
 - **Power-up blocks:** Additional pulsing icon overlay (scale 0.9-1.2)
 
@@ -595,6 +619,7 @@ All data is stored locally in `UserDefaults`. No cloud sync, no user accounts.
 | `stats_mostPiecesInSingleGame` | Most pieces placed in one game (Speed Demon achievement) |
 | `missions_day` / `missions_progress` / `missions_bonusAwarded` | Today's daily mission progress |
 | `lastDailyChallengeDate` | Date string (yyyy-MM-dd) of last daily challenge |
+| `review_firstLaunchDate` / `review_lastAskedDate` / `review_lastAskedVersion` | When the rating prompt may appear (ReviewPromptManager) |
 
 ---
 

@@ -156,6 +156,11 @@ struct SettingsView: View {
 
                     // Links section
                     VStack(spacing: 0) {
+                        // Shown once the App Store ID is filled in (see AppStoreLinks)
+                        if let reviewURL = AppStoreLinks.writeReview {
+                            SettingsLinkRow(icon: "star.fill", title: "Rate Stack & Blast", url: reviewURL)
+                            Divider().background(Color.white.opacity(0.1))
+                        }
                         SettingsLinkRow(icon: "doc.text", title: "Privacy Policy",
                                         url: URL(string: "https://geba89.github.io/stackandblast-web/privacy")!)
                         Divider().background(Color.white.opacity(0.1))

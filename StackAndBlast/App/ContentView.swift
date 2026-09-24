@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 /// Root view that handles navigation between menu and game screens.
@@ -10,6 +11,8 @@ struct ContentView: View {
     @State private var achievementToast: Achievement?
     @State private var missionToast: DailyMission?
     @Environment(\.scenePhase) private var scenePhase
+    /// Apple's "Enjoying Stack & Blast?" rating prompt (see maybeAskForReview)
+    @Environment(\.requestReview) private var requestReview
     /// Day key of the last daily-reward check, to re-check when the app resumes on a new day.
     @State private var lastDailyRewardCheckDay = ""
 
@@ -96,6 +99,8 @@ struct ContentView: View {
                         }
                     )
                     .transition(.opacity)
+                    // A happy game over (new best, gold medal)? Maybe ask for a rating
+                    .task { await maybeAskForReview() }
                 }
             } else {
                 // Main menu
@@ -255,6 +260,28 @@ struct ContentView: View {
         }
     }
     #endif
+
+    /// Ask for an App Store rating after a happy game (a new personal best, a gold
+    /// medal) from a regular player — ReviewPromptManager has the rules. Apple's own
+    /// prompt does the asking and decides whether it really appears (at most 3 times
+    /// a year; never in TestFlight builds). No rewards: the App Store rules forbid them.
+    @MainActor
+    private func maybeAskForReview() async {
+        guard !isScreenshotRun else { return }
+        // Let the NEW BEST ribbon land first. If the player leaves the screen before
+        // that, SwiftUI cancels this task and the sleep throws — then we don't ask.
+        do {
+            try await Task.sleep(for: .seconds(1.5))
+        } catch {
+            return
+        }
+        let reviews = ReviewPromptManager.shared
+        guard reviews.shouldAsk(isNewBest: viewModel.isNewBest && viewModel.bestScoreBeforeGame > 0,
+                                isGoldMedal: viewModel.dailyChallengeTier == .gold,
+                                gamesPlayed: StatsManager.shared.totalGamesPlayed) else { return }
+        reviews.didAsk()
+        requestReview()
+    }
 
     private func checkDailyReward() {
         guard !isScreenshotRun else { return }

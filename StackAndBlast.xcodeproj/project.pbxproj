@@ -71,6 +71,8 @@
 		FC330F6E167AD7109DEAAD08 /* ShareScoreCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F2BB2B0939AB4905980F02 /* ShareScoreCardView.swift */; };
 		0270B5BA0B4A36C67D00B6EA /* CandyUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E399175467CDFA8F1D27848 /* CandyUI.swift */; };
 		92F4C61FC06852795FF4A6A4 /* CandyTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4731B6EA9293F47AB314512D /* CandyTextures.swift */; };
+		C42FC35214E8804A2D141F17 /* ReviewPromptManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7698FA43EC89CD57A07674 /* ReviewPromptManager.swift */; };
+		EF1AFC0A29E815205184B71D /* AppStoreLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37792A8BCE2501FE7B5277AD /* AppStoreLinks.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -140,6 +142,8 @@
 		F98B45465F8556B9B99E8285 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		4E399175467CDFA8F1D27848 /* CandyUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandyUI.swift; sourceTree = "<group>"; };
 		4731B6EA9293F47AB314512D /* CandyTextures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandyTextures.swift; sourceTree = "<group>"; };
+		7D7698FA43EC89CD57A07674 /* ReviewPromptManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPromptManager.swift; sourceTree = "<group>"; };
+		37792A8BCE2501FE7B5277AD /* AppStoreLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreLinks.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -203,6 +207,7 @@
 				46844794FCD929AB7F973184 /* Piece.swift */,
 				D2B75ECC7A71F4C7AE9112DC /* PieceDefinitions.swift */,
 				13A4414DB770DA4814BF15BB /* PowerUpType.swift */,
+				37792A8BCE2501FE7B5277AD /* AppStoreLinks.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -313,6 +318,7 @@
 				4A0BF26E84A3E7295B8092D1 /* StatsManager.swift */,
 				55EB89AB28E413B58A0E8264 /* StoreManager.swift */,
 				3A44657F5C04A49BDBDC5318 /* StreakManager.swift */,
+				7D7698FA43EC89CD57A07674 /* ReviewPromptManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -536,6 +542,8 @@
 				BFD87F79964BC83984AE5725 /* StreakManager.swift in Sources */,
 				0270B5BA0B4A36C67D00B6EA /* CandyUI.swift in Sources */,
 				92F4C61FC06852795FF4A6A4 /* CandyTextures.swift in Sources */,
+				C42FC35214E8804A2D141F17 /* ReviewPromptManager.swift in Sources */,
+				EF1AFC0A29E815205184B71D /* AppStoreLinks.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
