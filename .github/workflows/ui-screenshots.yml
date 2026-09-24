@@ -1,0 +1,55 @@
+# Visual layout check without a Mac: builds the app, opens a few screens in the
+# iPhone SE / iPhone Pro / iPad simulators and prints each one as a text map in
+# the log (see .github/ci/ascii_screenshot.py). Runs on pushes that touch the app.
+name: UI Screenshots
+
+on:
+  push:
+    branches: ["claude/**"]
+    paths:
+      - "StackAndBlast/**"
+      - ".github/ci/**"
+      - ".github/workflows/ui-screenshots.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    name: Simulator screens as text
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v5
+
+      - name: Provide placeholder GoogleService-Info.plist
+        run: cp .github/ci/GoogleService-Info.placeholder.plist StackAndBlast/GoogleService-Info.plist
+
+      - name: Build app (Debug, iOS Simulator)
+        run: |
+          xcodebuild build \
+            -project StackAndBlast.xcodeproj \
+            -scheme StackAndBlast \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -disableAutomaticPackageResolution \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Install Pillow
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pillow
+
+      - name: Screens as text
+        run: |
+          APP="$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)"
+          echo "App: $APP"
+          .github/ci/screenshots.sh "$APP" .venv/bin/python

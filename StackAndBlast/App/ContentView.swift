@@ -13,6 +13,23 @@ struct ContentView: View {
     /// Day key of the last daily-reward check, to re-check when the app resumes on a new day.
     @State private var lastDailyRewardCheckDay = ""
 
+    #if DEBUG
+    /// CI screenshots only: launching with the environment variable
+    /// SCREENSHOT_SCENARIO=menu|tutorial|classic jumps straight to that screen and
+    /// skips onboarding, ads, sign-in prompts and popups. Not compiled into Release
+    /// (TestFlight / App Store) builds.
+    private static let screenshotScenario = ProcessInfo.processInfo.environment["SCREENSHOT_SCENARIO"]
+    #endif
+
+    /// Whether this launch is a CI screenshot run (always false in Release builds).
+    private var isScreenshotRun: Bool {
+        #if DEBUG
+        return Self.screenshotScenario != nil
+        #else
+        return false
+        #endif
+    }
+
     var body: some View {
         ZStack {
             if !hasSeenOnboarding {
@@ -135,6 +152,9 @@ struct ContentView: View {
             }
         }
         .task {
+            // Screenshot runs skip ads, tracking and Game Center prompts
+            guard !isScreenshotRun else { return }
+
             // Request ATT permission once UI is visible, then start AdMob SDK.
             try? await Task.sleep(for: .seconds(1))
             AdManager.shared.requestTrackingThenConfigure()
@@ -168,6 +188,17 @@ struct ContentView: View {
         }
         // Show daily reward popup on first appear
         .onAppear {
+            #if DEBUG
+            if let scenario = Self.screenshotScenario {
+                hasSeenOnboarding = true
+                switch scenario {
+                case "tutorial": selectedMode = .tutorial
+                case "classic":  selectedMode = .classic
+                default:         break // "menu"
+                }
+                return
+            }
+            #endif
             checkDailyReward()
         }
         // ...and when the app comes back to the foreground on a new day
@@ -203,6 +234,7 @@ struct ContentView: View {
     }
 
     private func checkDailyReward() {
+        guard !isScreenshotRun else { return }
         lastDailyRewardCheckDay = DailyChallengeDate.key()
         // The app may have been suspended for days — make sure the popup shows the right day
         StreakManager.shared.resetStreakIfDayWasMissed()
